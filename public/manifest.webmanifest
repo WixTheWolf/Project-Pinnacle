@@ -1,0 +1,9 @@
+{
+  "name": "Project Pinnacle",
+  "short_name": "Pinnacle",
+  "description": "Road to Gamble Sands performance dashboard",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0E1111",
+  "theme_color": "#0E1111"
+}
