@@ -14,6 +14,7 @@ A personal performance operating system for tournament golf preparation.
 - Recharts
 - React Hook Form + Zod
 - LocalStorage (MVP) → Supabase (future)
+- PWA-ready manifest
 
 ## Getting Started
 
@@ -46,3 +47,14 @@ Open [http://localhost:3000](http://localhost:3000)
 ## User
 
 Matthew Wixted · 12.4 handicap → 3 handicap goal · Gamble Sands Aug 20–23
+
+## Production build
+
+```bash
+npm run build
+npm run start
+```
+
+## Deploying
+
+This app is ready to deploy to Vercel as a standard Next.js project.
