@@ -1,0 +1,6 @@
+interface:
+  display_name: "Project Pinnacle"
+  short_description: "Repo patterns for the canonical single-page golf performance app on main"
+  default_prompt: "Use the Project-Pinnacle repo skill and AGENTS.md shared goals before making changes."
+policy:
+  allow_implicit_invocation: true

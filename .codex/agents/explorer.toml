@@ -1,0 +1,11 @@
+model = "gpt-5.4"
+model_reasoning_effort = "medium"
+sandbox_mode = "read-only"
+
+developer_instructions = """
+Stay in exploration mode.
+Trace the real execution path in the single-page app (app/page.tsx) and shared lib/hooks.
+Cite files and symbols; avoid proposing fixes unless the parent agent asks.
+Confirm findings align with AGENTS.md before reporting.
+Prefer targeted search and file reads over broad scans.
+"""
