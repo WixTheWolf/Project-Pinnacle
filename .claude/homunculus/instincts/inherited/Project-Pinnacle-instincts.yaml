@@ -1,4 +1,4 @@
-# Instincts for Project Pinnacle — aligned to main (single-page app)
+# Instincts for Project Pinnacle — aligned to main (multi-route app)
 # Generated baseline from ecc-tools, corrected 2026-07-03
 # NOTE: Supplements curated instincts; import only when using continuous-learning-v2
 
@@ -15,12 +15,12 @@ source_repo: https://github.com/WixTheWolf/Project-Pinnacle
 
 ## Action
 
-Read AGENTS.md first. All work serves the Gamble Sands tournament prep goal (handicap 12.4 → 3, score 79–84). Extend the canonical single-page app on main — never rebuild the app on a parallel branch.
+Read AGENTS.md first. All work serves the Gamble Sands tournament prep goal (handicap 12.4 → 3, score 79–84). Extend the canonical multi-route app on main — never rebuild the app on a parallel branch.
 
 ## Evidence
 
 - Production: https://project-pinnacle.vercel.app
-- Canonical layout: app/page.tsx with five bottom tabs
+- Canonical layout: app/today, app/plan, app/practice, app/recovery, app/performance, app/tournament
 
 ---
 id: Project-Pinnacle-architecture
@@ -31,16 +31,16 @@ source: curated
 source_repo: https://github.com/WixTheWolf/Project-Pinnacle
 ---
 
-# Single-Page Architecture
+# Multi-Route Architecture
 
 ## Action
 
-Keep all tab UI in app/page.tsx unless a human explicitly approves a route migration. Shared logic goes in lib/, hooks/, and components/ui.tsx.
+Add features to existing routes and feature modules under features/*. Shared logic goes in lib/, hooks/, and components/. Do not introduce a conflicting architecture without explicit human approval.
 
 ## Evidence
 
-- main branch merged PR #3 (mobile-first single-page app)
-- Deprecated: cursor/project-pinnacle-mvp-d8dc multi-route rewrite
+- app/*/page.tsx routes with bottom-tab navigation
+- hooks/use-pinnacle-data.tsx (PinnacleProvider)
 
 ---
 id: Project-Pinnacle-commit-conventional
@@ -75,12 +75,12 @@ source_repo: https://github.com/WixTheWolf/Project-Pinnacle
 
 ## Action
 
-Use kebab-case for non-component files (use-local-storage.ts). Use PascalCase for React component names.
+Use kebab-case for non-component files (use-pinnacle-data.tsx). Use PascalCase for React component names.
 
 ## Evidence
 
-- hooks/use-local-storage.ts
-- components/ui.tsx (StatCard, SectionCard)
+- hooks/use-pinnacle-data.tsx
+- features/today/components/today-screen.tsx
 
 ---
 id: Project-Pinnacle-imports
@@ -99,8 +99,8 @@ Use @/ alias imports, not deep relative paths or fictional aliases like @service
 
 ## Evidence
 
-- import { Settings } from "@/lib/types"
-- import { useLocalStorage } from "@/hooks/use-local-storage"
+- import type { Round } from "@/types"
+- import { usePinnacle } from "@/hooks/use-pinnacle-data"
 
 ---
 id: Project-Pinnacle-localstorage
@@ -115,11 +115,11 @@ source_repo: https://github.com/WixTheWolf/Project-Pinnacle
 
 ## Action
 
-Use existing pp-* keys only. Do not rename keys without a migration: pp-settings, pp-readiness, pp-practice, pp-rounds, pp-checklist, pp-habits.
+Use the existing PinnacleProvider storage key only. Do not rename without a migration: pinnacle-state-v1 (STORAGE_KEYS.PINNACLE_STATE).
 
 ## Evidence
 
-- hooks/use-local-storage.ts
+- lib/storage/storage-keys.ts
 - AGENTS.md stable contract section
 
 ---

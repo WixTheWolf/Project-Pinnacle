@@ -6,10 +6,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "strand-site.vercel.app"
-      }
-    ]
-  }
+        hostname: "strand-site.vercel.app",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

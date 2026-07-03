@@ -1,5 +1,10 @@
-import { PinnacleApp } from "@/components/pinnacle-app";
+import { AppShell } from "@/components/layout/app-shell";
+import { PracticeScreen } from "@/features/practice/components/practice-screen";
 
 export default function PracticePage() {
-  return <PinnacleApp activeTab="practice" />;
+  return (
+    <AppShell>
+      <PracticeScreen />
+    </AppShell>
+  );
 }

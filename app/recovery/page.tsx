@@ -1,5 +1,10 @@
-import { PinnacleApp } from "@/components/pinnacle-app";
+import { AppShell } from "@/components/layout/app-shell";
+import { RecoveryScreen } from "@/features/recovery/components/recovery-screen";
 
 export default function RecoveryPage() {
-  return <PinnacleApp activeTab="recovery" />;
+  return (
+    <AppShell>
+      <RecoveryScreen />
+    </AppShell>
+  );
 }

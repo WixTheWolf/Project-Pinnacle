@@ -18,21 +18,27 @@ Every feature, fix, and refactor should move Matt closer to tournament readiness
 
 ## Canonical architecture (do not fork)
 
-**Branch:** `main`  
+**Branch:** `main` (active development on feature branches merges here)  
 **Stack:** Next.js App Router, React, TypeScript, Tailwind CSS, localStorage persistence  
-**Layout:** Single-page app with bottom-tab navigation in `app/page.tsx`
+**Layout:** Multi-route app with bottom-tab navigation
 
 ```
-app/page.tsx          ← all five tabs (Today, Practice, Recovery, Stats, Tournament)
-components/ui.tsx     ← shared UI primitives
-hooks/use-local-storage.ts
-lib/types.ts          ← domain types
-lib/content.ts        ← drills, defaults, tournament data
+app/today/page.tsx           ← daily command center ("What should Matt do today?")
+app/plan/page.tsx            ← periodization & weekly focus
+app/practice/page.tsx        ← drills & session logging
+app/recovery/page.tsx        ← mobility, sleep, readiness
+app/performance/page.tsx     ← insight-driven scoring trends
+app/tournament/page.tsx      ← Gamble Sands prep
+app/stats/page.tsx           ← redirects to /performance
+features/*                   ← feature modules
+hooks/use-pinnacle-data.tsx  ← PinnacleProvider state
+lib/storage/*                ← localStorage abstraction
+types/index.ts               ← domain types
 ```
 
 ### LocalStorage keys (stable contract)
 
-- `pp-settings`, `pp-readiness`, `pp-practice`, `pp-rounds`, `pp-checklist`, `pp-habits`
+- `pinnacle-state-v1` (via `STORAGE_KEYS.PINNACLE_STATE`)
 
 Do **not** rename these keys without a migration plan.
 
@@ -60,32 +66,26 @@ All agents must align with this table. When in doubt, defer to `main` and this f
 ### Rules every agent must follow
 
 1. **One app, one architecture** — never rebuild the full app on a parallel branch.
-2. **Extend `main`** — add features to the existing single-page structure unless a human explicitly approves an architecture migration.
+2. **Extend the multi-route layout** — add features to existing routes and feature modules unless a human explicitly approves an architecture migration.
 3. **No duplicate PRs** — only one open app-feature PR at a time.
-4. **Shared vocabulary** — use tab names exactly: Today, Practice, Recovery, Stats, Tournament.
+4. **Shared vocabulary** — use tab names exactly: Today, Plan, Practice, Recovery, Performance, Event (Tournament).
 5. **Hand off context** — reference files changed, localStorage keys touched, and tournament impact in PR descriptions.
 6. **Deploy path** — merges to `main` auto-deploy via Vercel GitHub integration.
-
-### Deprecated / do not use
-
-- `cursor/project-pinnacle-mvp-d8dc` — alternate multi-route architecture; superseded by merged `main`.
-- Open PR #1 (MVP rewrite) — closed in favor of production `main`.
-- Stale ECC bundle (PR #2) — replaced by corrected bundle on `main`.
 
 ## Coding conventions
 
 ### File naming
 
-- **kebab-case** for files: `use-local-storage.ts`, `globals.css`
-- **PascalCase** for React components: `StatCard`, `SectionCard`
+- **kebab-case** for files: `use-pinnacle-data.tsx`, `performance-insights.ts`
+- **PascalCase** for React components: `TodayScreen`, `StatCard`
 
 ### Imports
 
 Use the `@/` path alias:
 
 ```typescript
-import { Settings } from "@/lib/types";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { usePinnacle } from "@/hooks/use-pinnacle-data";
+import type { Round } from "@/types";
 ```
 
 ### Commits

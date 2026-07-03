@@ -1,5 +1,10 @@
-import { PinnacleApp } from "@/components/pinnacle-app";
+import { AppShell } from "@/components/layout/app-shell";
+import { TodayScreen } from "@/features/today/components/today-screen";
 
 export default function TodayPage() {
-  return <PinnacleApp activeTab="today" />;
+  return (
+    <AppShell>
+      <TodayScreen />
+    </AppShell>
+  );
 }

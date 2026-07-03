@@ -1,10 +1,10 @@
 # Project Pinnacle Development Patterns
 
-> Repo skill aligned to canonical `main` architecture (July 2026)
+> Repo skill aligned to canonical architecture (July 2026)
 
 ## Overview
 
-Project Pinnacle is a mobile-first Next.js golf performance app. The production app lives on `main` as a **single-page app** with bottom-tab navigation. All agents must extend this codebase — not create parallel implementations.
+Project Pinnacle is a mobile-first Next.js golf performance app. The app uses **multi-route pages** with bottom-tab navigation and feature modules. All agents must extend this codebase — not create parallel implementations.
 
 ## Shared product goal
 
@@ -17,34 +17,38 @@ Project Pinnacle is a mobile-first Next.js golf performance app. The production 
 
 | Path | Purpose |
 |------|---------|
-| `app/page.tsx` | All five tabs: Today, Practice, Recovery, Stats, Tournament |
-| `components/ui.tsx` | Shared UI components |
-| `hooks/use-local-storage.ts` | Persistence hook |
-| `lib/types.ts` | Domain types |
-| `lib/content.ts` | Drills, defaults, tournament content |
+| `app/today/page.tsx` | Daily command center |
+| `app/plan/page.tsx` | Periodization & weekly focus |
+| `app/practice/page.tsx` | Drills & session logging |
+| `app/recovery/page.tsx` | Mobility, sleep, readiness |
+| `app/performance/page.tsx` | Insight-driven scoring trends |
+| `app/tournament/page.tsx` | Gamble Sands prep |
+| `features/*` | Feature modules (components, docs) |
+| `hooks/use-pinnacle-data.tsx` | PinnacleProvider state |
+| `lib/storage/*` | localStorage abstraction |
+| `types/index.ts` | Domain types |
 
 ## Coding conventions
 
 ### File naming
 
-- **kebab-case** for non-component files: `use-local-storage.ts`
-- **PascalCase** for React components in `components/ui.tsx`
+- **kebab-case** for non-component files: `use-pinnacle-data.tsx`
+- **PascalCase** for React components: `TodayScreen`, `StatCard`
 
 ### Imports
 
 Use `@/` alias imports:
 
 ```typescript
-import { Settings } from "@/lib/types";
-import { DEFAULT_SETTINGS } from "@/lib/content";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { usePinnacle } from "@/hooks/use-pinnacle-data";
+import { getPerformanceInsights } from "@/lib/performance-insights";
 ```
 
 ### LocalStorage keys
 
 Stable keys — do not rename without migration:
 
-- `pp-settings`, `pp-readiness`, `pp-practice`, `pp-rounds`, `pp-checklist`, `pp-habits`
+- `pinnacle-state-v1` (via `STORAGE_KEYS.PINNACLE_STATE`)
 
 ### Commits
 

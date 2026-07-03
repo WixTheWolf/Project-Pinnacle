@@ -14,8 +14,8 @@ Ship tournament-ready golf performance features for **Road to Gamble Sands** (ha
 ## Architecture
 
 - Canonical branch: `main`
-- Single-page app: `app/page.tsx` with five bottom tabs
-- Do **not** rebuild the app on parallel branches or introduce a multi-route rewrite without explicit human approval
+- Multi-route app: `app/today`, `app/plan`, `app/practice`, `app/recovery`, `app/performance`, `app/tournament` with bottom-tab navigation
+- Do **not** rebuild the app on parallel branches or introduce a conflicting architecture without explicit human approval
 
 ## Coordination with other agents
 

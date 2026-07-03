@@ -4,7 +4,7 @@ This supplements the root `AGENTS.md` with a repo-local ECC baseline.
 
 ## Shared goal
 
-All Codex sub-agents serve the same product goal defined in `AGENTS.md`: ship tournament-ready golf performance features on the canonical `main` single-page app.
+All Codex sub-agents serve the same product goal defined in `AGENTS.md`: ship tournament-ready golf performance features on the canonical multi-route app.
 
 ## Repo skill
 
@@ -26,7 +26,7 @@ Sub-agents are **read-only**. The parent agent owns all writes.
 
 1. Parent reads `AGENTS.md` and confirms scope against the shared product goal.
 2. Explorer gathers evidence (if needed).
-3. Parent implements changes on `main` architecture.
+3. Parent implements changes on the multi-route architecture.
 4. Reviewer validates the diff before merge.
 5. Docs researcher confirms Next.js API usage when touching framework code.
 

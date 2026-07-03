@@ -1,5 +1,10 @@
-import { PinnacleApp } from "@/components/pinnacle-app";
+import { AppShell } from "@/components/layout/app-shell";
+import { FieldScreen } from "@/features/field/components/field-screen";
 
 export default function FieldPage() {
-  return <PinnacleApp activeTab="field" />;
+  return (
+    <AppShell>
+      <FieldScreen />
+    </AppShell>
+  );
 }

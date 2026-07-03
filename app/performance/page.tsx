@@ -1,5 +1,10 @@
-import { PinnacleApp } from "@/components/pinnacle-app";
+import { AppShell } from "@/components/layout/app-shell";
+import { PerformanceScreen } from "@/features/performance/components/performance-screen";
 
 export default function PerformancePage() {
-  return <PinnacleApp activeTab="performance" />;
+  return (
+    <AppShell>
+      <PerformanceScreen />
+    </AppShell>
+  );
 }
