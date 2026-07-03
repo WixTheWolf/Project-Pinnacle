@@ -1,0 +1,38 @@
+---
+description: Project Pinnacle agent coordination — shared goals, architecture, and role boundaries
+alwaysApply: true
+---
+
+# Project Pinnacle — Cursor Agent Rules
+
+Read `AGENTS.md` at the repo root before any change.
+
+## Shared goal
+
+Ship tournament-ready golf performance features for **Road to Gamble Sands** (handicap 12.4 → 3, Aug 20–23, 2026). Production: https://project-pinnacle.vercel.app
+
+## Architecture
+
+- Canonical branch: `main`
+- Single-page app: `app/page.tsx` with five bottom tabs
+- Do **not** rebuild the app on parallel branches or introduce a multi-route rewrite without explicit human approval
+
+## Coordination with other agents
+
+| Agent | Your relationship |
+|-------|-------------------|
+| Codex explorer/reviewer/docs-researcher | Read-only helpers; cite their findings, you own writes |
+| Claude Code | Same `AGENTS.md` and repo skill; avoid conflicting PRs |
+| ecc-tools[bot] | Config generation only; regenerate ECC after structural changes |
+
+## Before merge
+
+```bash
+npm run lint && npm run typecheck && npm run build
+```
+
+## PR hygiene
+
+- One open app-feature PR at a time
+- Reference localStorage keys and tournament impact in PR descriptions
+- Close or update stale PRs that propose alternate architectures

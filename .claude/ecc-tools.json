@@ -1,0 +1,11 @@
+{
+  "version": "1.3",
+  "schemaVersion": "1.0",
+  "generatedBy": "ecc-tools",
+  "generatedAt": "2026-07-02T21:05:33.466Z",
+  "alignedAt": "2026-07-03T00:00:00.000Z",
+  "alignmentNote": "Instincts and skills corrected for canonical main single-page architecture. Supersedes ecc-tools/Project-Pinnacle-1783026349660 branch.",
+  "repo": "https://github.com/WixTheWolf/Project-Pinnacle",
+  "canonicalBranch": "main",
+  "productionUrl": "https://project-pinnacle.vercel.app"
+}
