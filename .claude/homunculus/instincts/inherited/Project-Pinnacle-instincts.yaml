@@ -1,0 +1,182 @@
+# Instincts for Project Pinnacle — aligned to main (multi-route app)
+# Generated baseline from ecc-tools, corrected 2026-07-03
+# NOTE: Supplements curated instincts; import only when using continuous-learning-v2
+
+---
+id: Project-Pinnacle-shared-goal
+trigger: "when starting any task in this repository"
+confidence: 0.95
+domain: coordination
+source: curated
+source_repo: https://github.com/WixTheWolf/Project-Pinnacle
+---
+
+# Shared Product Goal
+
+## Action
+
+Read AGENTS.md first. All work serves the Gamble Sands tournament prep goal (handicap 12.4 → 3, score 79–84). Extend the canonical multi-route app on main — never rebuild the app on a parallel branch.
+
+## Evidence
+
+- Production: https://project-pinnacle.vercel.app
+- Canonical layout: app/today, app/plan, app/practice, app/recovery, app/performance, app/tournament
+
+---
+id: Project-Pinnacle-architecture
+trigger: "when adding features or restructuring code"
+confidence: 0.95
+domain: architecture
+source: curated
+source_repo: https://github.com/WixTheWolf/Project-Pinnacle
+---
+
+# Multi-Route Architecture
+
+## Action
+
+Add features to existing routes and feature modules under features/*. Shared logic goes in lib/, hooks/, and components/. Do not introduce a conflicting architecture without explicit human approval.
+
+## Evidence
+
+- app/*/page.tsx routes with bottom-tab navigation
+- hooks/use-pinnacle-data.tsx (PinnacleProvider)
+
+---
+id: Project-Pinnacle-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/WixTheWolf/Project-Pinnacle
+---
+
+# Conventional Commits
+
+## Action
+
+Use conventional commit format: feat, fix, chore, docs. Write descriptive messages, not terse 32-char summaries.
+
+## Evidence
+
+- feat: build Project Pinnacle MVP
+- feat: add Project Pinnacle mobile-first Next.js app
+
+---
+id: Project-Pinnacle-naming-files
+trigger: "when creating a new file"
+confidence: 0.9
+domain: code-style
+source: curated
+source_repo: https://github.com/WixTheWolf/Project-Pinnacle
+---
+
+# File Naming
+
+## Action
+
+Use kebab-case for non-component files (use-pinnacle-data.tsx). Use PascalCase for React component names.
+
+## Evidence
+
+- hooks/use-pinnacle-data.tsx
+- features/today/components/today-screen.tsx
+
+---
+id: Project-Pinnacle-imports
+trigger: "when adding imports"
+confidence: 0.95
+domain: code-style
+source: curated
+source_repo: https://github.com/WixTheWolf/Project-Pinnacle
+---
+
+# Path Alias Imports
+
+## Action
+
+Use @/ alias imports, not deep relative paths or fictional aliases like @services/.
+
+## Evidence
+
+- import type { Round } from "@/types"
+- import { usePinnacle } from "@/hooks/use-pinnacle-data"
+
+---
+id: Project-Pinnacle-localstorage
+trigger: "when persisting user data"
+confidence: 0.95
+domain: data
+source: curated
+source_repo: https://github.com/WixTheWolf/Project-Pinnacle
+---
+
+# LocalStorage Keys
+
+## Action
+
+Use the existing PinnacleProvider storage key only. Do not rename without a migration: pinnacle-state-v1 (STORAGE_KEYS.PINNACLE_STATE).
+
+## Evidence
+
+- lib/storage/storage-keys.ts
+- AGENTS.md stable contract section
+
+---
+id: Project-Pinnacle-validation
+trigger: "before opening or merging a pull request"
+confidence: 0.9
+domain: workflow
+source: curated
+source_repo: https://github.com/WixTheWolf/Project-Pinnacle
+---
+
+# Pre-Merge Validation
+
+## Action
+
+Run npm run lint, npm run typecheck, and npm run build before merge.
+
+## Evidence
+
+- package.json scripts
+- AGENTS.md validation section
+
+---
+id: Project-Pinnacle-agent-roles
+trigger: "when coordinating with other agents or bots"
+confidence: 0.9
+domain: coordination
+source: curated
+source_repo: https://github.com/WixTheWolf/Project-Pinnacle
+---
+
+# Agent Role Boundaries
+
+## Action
+
+Cursor/Claude agents implement features. Codex sub-agents (explorer, reviewer, docs-researcher) are read-only. ecc-tools[bot] generates config only — regenerate ECC after structural app changes, never overwrite app code in parallel.
+
+## Evidence
+
+- AGENTS.md agent roles table
+- .codex/agents/*.toml sandbox_mode = read-only
+
+---
+id: Project-Pinnacle-nextjs
+trigger: "when writing Next.js or React code"
+confidence: 0.9
+domain: framework
+source: curated
+source_repo: https://github.com/WixTheWolf/Project-Pinnacle
+---
+
+# Next.js Version
+
+## Action
+
+Read node_modules/next/dist/docs/ before coding. This project uses a newer Next.js with breaking changes from training data defaults.
+
+## Evidence
+
+- AGENTS.md nextjs-agent-rules block
