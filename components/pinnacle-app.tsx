@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import Image from "next/image";
 import {
   DAILY_MOBILITY,
   DEFAULT_SETTINGS,
@@ -17,7 +18,13 @@ import {
   WARMUP_40,
   WEEKLY_TEMPLATE
 } from "@/lib/content";
-import { FIELD_PLAYERS, SKILL_CATEGORIES, SKILL_LABELS, SkillCategory } from "@/lib/field-data";
+import {
+  FIELD_PLAYERS,
+  SKILL_CATEGORIES,
+  SKILL_LABELS,
+  STRAND_BRAND_ASSETS,
+  SkillCategory
+} from "@/lib/field-data";
 import { ChecklistState, PracticeLog, ReadinessEntry, RoundLog, Settings, TabKey } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { BottomTabs, Card, Checklist, CollapsibleCard, Pill, ProgressBar, SectionTitle } from "@/components/ui";
@@ -778,11 +785,26 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
 
       {activeTab === "field" ? (
         <div className="space-y-4">
-          <Card className="field-hero-gradient overflow-hidden border-sand/35">
-            <p className="text-xs uppercase tracking-[0.2em] text-sand">Gamble Sands Field</p>
+          <Card
+            className="field-hero-gradient overflow-hidden border-sand/35"
+            style={{
+              backgroundImage: `linear-gradient(145deg, rgba(17, 24, 39, 0.9), rgba(15, 23, 42, 0.88)), url('${STRAND_BRAND_ASSETS.heroImageUrl}')`,
+              backgroundSize: "cover",
+              backgroundPosition: "center"
+            }}
+          >
+            <Image
+              src={STRAND_BRAND_ASSETS.logoUrl}
+              alt="The Strand Invitational logo"
+              width={160}
+              height={36}
+              className="h-8 w-auto opacity-90"
+              priority={false}
+            />
+            <p className="mt-3 text-xs uppercase tracking-[0.2em] text-sand">Gamble Sands Field</p>
             <h2 className="mt-2 text-3xl font-semibold leading-tight text-white">Know the group. Prepare the edge.</h2>
             <p className="mt-2 max-w-[34ch] text-sm text-slate-200/90">
-              Who you&apos;re playing with, where pressure points are, and how to prepare the smartest game plan.
+              Sourced from the current public Strand roster and handicap feed snapshot so Matt can prep with the right information.
             </p>
           </Card>
 
@@ -790,16 +812,21 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-wide text-sand">Featured player</p>
-                <h3 className="mt-1 text-2xl font-semibold text-white">{youPlayer.name}</h3>
-                <p className="text-sm text-muted">You · {youPlayer.handedness}-handed</p>
+                <h3 className="mt-1 text-2xl font-semibold text-white">
+                  {youPlayer.name} <span className="text-sand">({youPlayer.nickname})</span>
+                </h3>
+                <p className="text-sm text-muted">
+                  You · {youPlayer.handedness === "Unknown" ? "Handedness not listed" : `${youPlayer.handedness}-handed`}
+                </p>
               </div>
-              <HandicapBadge handicap={youPlayer.handicap} />
+              <HandicapBadge handicap={youPlayer.handicap} label={youPlayer.handicapLabel} />
             </div>
 
             <div className="mt-3 rounded-xl border border-white/10 bg-black/25 p-3">
               <p className="text-xs uppercase tracking-wide text-muted">Current focus</p>
               <p className="mt-1 text-sm text-text">{youPlayer.currentFocus}</p>
               <p className="mt-2 text-xs text-sand">Goal handicap: {settings.goalHandicap}</p>
+              <p className="mt-2 text-xs text-muted">{youPlayer.bio}</p>
             </div>
 
             <div className="mt-3">
@@ -820,13 +847,14 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                 >
                   <div>
                     <p className="text-sm font-medium text-text">
-                      {player.name} {player.isYou ? <span className="text-sand">· You</span> : null}
+                      {player.name} <span className="text-sand">({player.nickname})</span>{" "}
+                      {player.isYou ? <span className="text-sand">· You</span> : null}
                     </p>
                     <p className="text-xs text-muted">
-                      Top strengths: {topSkillLabels(player.skills).join(" · ")}
+                      Top skills: {topSkillLabels(player.skills).join(" · ")}
                     </p>
                   </div>
-                  <HandicapBadge handicap={player.handicap} />
+                  <HandicapBadge handicap={player.handicap} label={player.handicapLabel} />
                 </div>
               ))}
             </div>
@@ -861,18 +889,41 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               >
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-lg font-semibold text-white">{player.name}</h3>
+                    <h3 className="text-lg font-semibold text-white">
+                      {player.name} <span className="text-sand">({player.nickname})</span>
+                    </h3>
                     <p className="text-xs text-muted">
-                      {player.handedness}-handed · {player.playingStyle}
+                      {player.handedness === "Unknown" ? "Handedness not listed" : `${player.handedness}-handed`} ·{" "}
+                      {player.playingStyle}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <HandicapBadge handicap={player.handicap} />
+                    <HandicapBadge handicap={player.handicap} label={player.handicapLabel} />
                     <ChevronDown size={16} className="text-muted transition group-open:rotate-180 group-open:text-sand" />
                   </div>
                 </summary>
 
                 <div className="mt-3 space-y-3">
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                    <p className="text-xs uppercase tracking-wide text-muted">Profile snapshot</p>
+                    <p className="mt-1 text-sm text-text">{player.bio}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+                      {player.location ? <span>Location: {player.location}</span> : null}
+                      {player.ghinClub ? <span>GHIN club: {player.ghinClub}</span> : null}
+                      {player.grintProfileUrl ? (
+                        <a
+                          href={player.grintProfileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`TheGrint profile for ${player.name}`}
+                          className="rounded-full border border-sand/45 px-2 py-0.5 text-sand hover:bg-sand/10"
+                        >
+                          TheGrint profile
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="rounded-xl border border-white/10 bg-black/20 p-3">
                       <p className="text-xs uppercase tracking-wide text-muted">Strengths</p>
@@ -1066,10 +1117,10 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
   );
 }
 
-function HandicapBadge({ handicap }: { handicap: number }) {
+function HandicapBadge({ handicap, label }: { handicap: number; label?: string }) {
   return (
     <span className="inline-flex shrink-0 items-center rounded-full border border-sand/55 bg-sand/15 px-3 py-1 text-sm font-semibold text-sand">
-      HCP {handicap.toFixed(1)}
+      HCP {label ?? handicap.toFixed(1)}
     </span>
   );
 }
