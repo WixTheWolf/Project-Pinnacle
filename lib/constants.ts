@@ -39,9 +39,10 @@ export const TRAINING_PHASES = [
 export const NAV_ITEMS = [
   { href: "/today", label: "Today", icon: "Sun" },
   { href: "/plan", label: "Plan", icon: "Map" },
-  { href: "/practice", label: "Practice", icon: "Target" },
-  { href: "/recovery", label: "Recovery", icon: "Heart" },
+  { href: "/practice", label: "Drills", icon: "Target" },
+  { href: "/recovery", label: "Rec", icon: "Heart" },
   { href: "/performance", label: "Perf", icon: "TrendingUp" },
+  { href: "/field", label: "Field", icon: "Users" },
   { href: "/tournament", label: "Event", icon: "Trophy" },
 ] as const;
 

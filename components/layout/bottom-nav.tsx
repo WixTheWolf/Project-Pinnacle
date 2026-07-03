@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Heart, Map, Sun, Target, TrendingUp, Trophy } from "lucide-react";
+import { Heart, Map, Sun, Target, TrendingUp, Trophy, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/lib/constants";
 
@@ -13,6 +13,7 @@ const iconMap = {
   Target,
   Heart,
   TrendingUp,
+  Users,
   Trophy,
 };
 
