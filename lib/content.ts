@@ -35,7 +35,7 @@ export const WEEKLY_TEMPLATE: Record<string, string[]> = {
   Tuesday: ["Range session: Driver, irons, wedges", "Recovery protocol"],
   Wednesday: ["Walk 45 min", "Short game", "Mobility"],
   Thursday: ["Strength B", "Wedge matrix", "Putting"],
-  Friday: ["Play 9-18 holes", "Track stats"],
+  Friday: ["Play 9-18 holes", "Track performance"],
   Saturday: ["Tournament simulation round"],
   Sunday: ["Recovery", "Stretching", "Foam rolling", "Weekly review"]
 };
@@ -298,7 +298,7 @@ export const DEFAULT_SETTINGS: Settings = {
     Tuesday: "Range session + Recovery protocol",
     Wednesday: "Walk 45 min + Short game + Mobility",
     Thursday: "Strength B + Wedge matrix + Putting",
-    Friday: "Play 9-18 holes + Track stats",
+    Friday: "Play 9-18 holes + Track performance",
     Saturday: "Tournament simulation round",
     Sunday: "Recovery + Stretching + Foam rolling + Weekly review"
   },
