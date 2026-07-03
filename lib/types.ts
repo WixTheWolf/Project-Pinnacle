@@ -1,4 +1,4 @@
-export type TabKey = "today" | "practice" | "recovery" | "stats" | "tournament";
+export type TabKey = "today" | "practice" | "recovery" | "performance" | "field" | "tournament";
 
 export type Phase =
   | "Foundation"
