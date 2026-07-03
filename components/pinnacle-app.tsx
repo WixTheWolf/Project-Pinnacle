@@ -18,6 +18,7 @@ import {
   WARMUP_40,
   WEEKLY_TEMPLATE
 } from "@/lib/content";
+import { CHECKLIST_GUIDES } from "@/lib/coaching-guides";
 import {
   FIELD_PLAYERS,
   SKILL_CATEGORIES,
@@ -442,6 +443,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               onToggle={toggleChecklist}
               prefix="mobility"
               label="Mobility"
+              guides={CHECKLIST_GUIDES}
             />
           </Card>
 
@@ -453,6 +455,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               onToggle={toggleChecklist}
               prefix="recovery"
               label="Recovery"
+              guides={CHECKLIST_GUIDES}
             />
           </Card>
         </div>
@@ -494,6 +497,29 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                       <li key={item}>{item}</li>
                     ))}
                   </ul>
+                  <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-2.5">
+                    <p className="text-xs text-muted">{drill.tutorial}</p>
+                    <ul className="mt-2 space-y-1 text-xs text-text">
+                      {drill.tips.map((tip) => (
+                        <li key={tip}>
+                          <span className="text-sand">Tip:</span> {tip}
+                        </li>
+                      ))}
+                      {drill.tricks.map((trick) => (
+                        <li key={trick}>
+                          <span className="text-sand">Trick:</span> {trick}
+                        </li>
+                      ))}
+                    </ul>
+                    <a
+                      href={drill.videoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-block text-xs font-medium text-sand underline underline-offset-2"
+                    >
+                      Watch drill tutorial
+                    </a>
+                  </div>
                 </div>
               ))}
             </div>
@@ -571,6 +597,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               onToggle={toggleChecklist}
               prefix="mobility"
               label="Mobility"
+              guides={CHECKLIST_GUIDES}
             />
           </Card>
 
@@ -582,6 +609,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                 onToggle={toggleChecklist}
                 prefix={name.toLowerCase().replace(/[^a-z]/g, "")}
                 label={name}
+                guides={CHECKLIST_GUIDES}
               />
             </CollapsibleCard>
           ))}
@@ -593,6 +621,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               onToggle={toggleChecklist}
               prefix="strengtha"
               label="Strength A"
+              guides={CHECKLIST_GUIDES}
             />
           </CollapsibleCard>
 
@@ -603,6 +632,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               onToggle={toggleChecklist}
               prefix="strengthb"
               label="Strength B"
+              guides={CHECKLIST_GUIDES}
             />
             <p className="mt-3 text-xs text-muted">
               Deload week: reduce strength volume by 40-50%. Keep speed sharp and leave fresh.
@@ -616,6 +646,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               onToggle={toggleChecklist}
               prefix="recovery"
               label="Recovery"
+              guides={CHECKLIST_GUIDES}
             />
           </CollapsibleCard>
         </div>

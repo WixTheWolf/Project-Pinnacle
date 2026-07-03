@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import { ReactNode, useState } from "react";
 import Link from "next/link";
-import { TabKey } from "@/lib/types";
+import { CoachingGuide, TabKey } from "@/lib/types";
 import { BarChart3, CalendarCheck2, Check, ChevronDown, Dumbbell, HeartPulse, House, Users2 } from "lucide-react";
 
 export function Card({
@@ -121,13 +121,15 @@ export function Checklist({
   checkedMap,
   onToggle,
   prefix,
-  label
+  label,
+  guides
 }: {
   items: string[];
   checkedMap: Record<string, boolean>;
   onToggle: (key: string) => void;
   prefix: string;
   label?: string;
+  guides?: Record<string, CoachingGuide>;
 }) {
   const completed = items.reduce((count, _, idx) => (checkedMap[`${prefix}-${idx}`] ? count + 1 : count), 0);
 
@@ -141,31 +143,55 @@ export function Checklist({
       {items.map((item, idx) => {
         const key = `${prefix}-${idx}`;
         const checked = !!checkedMap[key];
+        const guide = guides?.[item];
         return (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onToggle(key)}
-            role="checkbox"
-            aria-checked={checked}
-            aria-label={`${checked ? "Mark incomplete" : "Mark complete"}: ${item}`}
-            className={clsx(
-              "flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm transition",
-              checked
-                ? "border-turf/70 bg-turf/10 text-green-100 shadow-[0_0_0_1px_rgba(46,125,50,0.2)]"
-                : "border-white/10 bg-black/15 text-text hover:border-white/20"
-            )}
-          >
-            <span
+          <div key={key} className="rounded-xl border border-white/10 bg-black/10">
+            <button
+              type="button"
+              onClick={() => onToggle(key)}
+              role="checkbox"
+              aria-checked={checked}
+              aria-label={`${checked ? "Mark incomplete" : "Mark complete"}: ${item}`}
               className={clsx(
-                "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition",
-                checked ? "border-turf bg-turf text-black" : "border-white/30"
+                "flex w-full items-center gap-3 rounded-xl p-3 text-left text-sm transition",
+                checked
+                  ? "border-turf/70 bg-turf/10 text-green-100 shadow-[0_0_0_1px_rgba(46,125,50,0.2)]"
+                  : "text-text hover:bg-white/5"
               )}
             >
-              {checked ? <Check size={12} /> : null}
-            </span>
-            <span>{item}</span>
-          </button>
+              <span
+                className={clsx(
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition",
+                  checked ? "border-turf bg-turf text-black" : "border-white/30"
+                )}
+              >
+                {checked ? <Check size={12} /> : null}
+              </span>
+              <span>{item}</span>
+            </button>
+            {guide ? (
+              <details className="border-t border-white/10 px-3 pb-3 pt-2">
+                <summary className="cursor-pointer text-xs font-medium text-sand">How to do it + tips</summary>
+                <p className="mt-2 text-xs text-muted">{guide.tutorial}</p>
+                <ul className="mt-2 space-y-1 text-xs text-text">
+                  <li>
+                    <span className="text-sand">Tip:</span> {guide.tip}
+                  </li>
+                  <li>
+                    <span className="text-sand">Trick:</span> {guide.trick}
+                  </li>
+                </ul>
+                <a
+                  href={guide.videoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-block text-xs font-medium text-sand underline underline-offset-2"
+                >
+                  Watch tutorial video
+                </a>
+              </details>
+            ) : null}
+          </div>
         );
       })}
     </div>
