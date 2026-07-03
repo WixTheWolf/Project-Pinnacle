@@ -25,7 +25,7 @@ import {
   STRAND_BRAND_ASSETS,
   SkillCategory
 } from "@/lib/field-data";
-import { ChecklistState, PracticeLog, ReadinessEntry, RoundLog, Settings, TabKey } from "@/lib/types";
+import { ChecklistState, PracticeLog, ReadinessEntry, Settings, TabKey } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { BottomTabs, Card, Checklist, CollapsibleCard, Pill, ProgressBar, SectionTitle } from "@/components/ui";
 import { ChevronDown, Clock3, Flame, Gauge, Play, Target } from "lucide-react";
@@ -65,27 +65,9 @@ const textInputClass =
 const buttonClass =
   "rounded-xl border border-sand/60 bg-sand/15 px-4 py-2 text-sm font-semibold text-sand transition hover:bg-sand/25";
 
-const roundFieldConfig: Array<{
-  key: keyof Omit<RoundLog, "id" | "notes">;
-  label: string;
-  type: "date" | "number" | "text";
-}> = [
-  { key: "date", label: "Date", type: "date" },
-  { key: "course", label: "Course", type: "text" },
-  { key: "score", label: "Score", type: "number" },
-  { key: "tees", label: "Tees", type: "text" },
-  { key: "fairwaysHit", label: "Fairways hit", type: "number" },
-  { key: "gir", label: "Greens in regulation", type: "number" },
-  { key: "putts", label: "Putts", type: "number" },
-  { key: "penalties", label: "Penalty strokes", type: "number" },
-  { key: "upAndDownMade", label: "Up-and-downs made", type: "number" },
-  { key: "upAndDownAttempted", label: "Up-and-down attempts", type: "number" },
-  { key: "birdies", label: "Birdies", type: "number" },
-  { key: "doublesOrWorse", label: "Doubles or worse", type: "number" },
-  { key: "threePutts", label: "Three-putts", type: "number" },
-  { key: "soreness", label: "Physical soreness (1-10)", type: "number" },
-  { key: "mentalGrade", label: "Mental grade (1-10)", type: "number" }
-];
+const GHIN_URL = "https://www.ghin.com/";
+const GHIN_NUMBER = "11634237";
+const THE_GRINT_URL = "https://thegrint.com/deeplink/profile/tgMTgxMjQ2NQ";
 
 function readinessScore(draft: Record<ReadinessKey, number>) {
   const stressAdjusted = 11 - draft.stress;
@@ -207,7 +189,6 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
     []
   );
   const [practiceLogs, setPracticeLogs, practiceHydrated] = useLocalStorage<PracticeLog[]>("pp-practice", []);
-  const [roundLogs, setRoundLogs, roundsHydrated] = useLocalStorage<RoundLog[]>("pp-rounds", []);
   const [dailyChecklist, setDailyChecklist, checklistHydrated] = useLocalStorage<ChecklistState>("pp-checklist", {
     date: localDateKey(),
     completed: {}
@@ -237,30 +218,10 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
     notes: ""
   });
 
-  const [roundDraft, setRoundDraft] = useLocalStorage<Omit<RoundLog, "id">>("pp-draft-round", {
-    date: localDateKey(),
-    course: settings.course,
-    score: 84,
-    tees: "Blue",
-    fairwaysHit: 8,
-    gir: 7,
-    putts: 31,
-    penalties: 1,
-    upAndDownMade: 4,
-    upAndDownAttempted: 8,
-    birdies: 2,
-    doublesOrWorse: 1,
-    threePutts: 0,
-    soreness: 4,
-    mentalGrade: 7,
-    notes: ""
-  });
-
   const ready =
     settingsHydrated &&
     readinessHydrated &&
     practiceHydrated &&
-    roundsHydrated &&
     checklistHydrated &&
     habitsHydrated;
 
@@ -318,51 +279,6 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
       ),
     [habitHistory]
   );
-
-  const performanceStats = useMemo(() => {
-    if (roundLogs.length === 0) {
-      return null;
-    }
-    const sum = roundLogs.reduce(
-      (acc, round) => {
-        acc.score += round.score;
-        acc.fairways += round.fairwaysHit;
-        acc.gir += round.gir;
-        acc.putts += round.putts;
-        acc.penalties += round.penalties;
-        acc.doubles += round.doublesOrWorse;
-        acc.soreness += round.soreness;
-        acc.best = Math.min(acc.best, round.score);
-        return acc;
-      },
-      {
-        score: 0,
-        fairways: 0,
-        gir: 0,
-        putts: 0,
-        penalties: 0,
-        doubles: 0,
-        soreness: 0,
-        best: Number.POSITIVE_INFINITY
-      }
-    );
-    const n = roundLogs.length;
-    const recentFive = [...roundLogs]
-      .sort((a, b) => parseDateKey(b.date).getTime() - parseDateKey(a.date).getTime())
-      .slice(0, 5)
-      .map((round) => round.score);
-    return {
-      avgScore: (sum.score / n).toFixed(1),
-      avgFairways: (sum.fairways / n).toFixed(1),
-      avgGir: (sum.gir / n).toFixed(1),
-      avgPutts: (sum.putts / n).toFixed(1),
-      avgPenalties: (sum.penalties / n).toFixed(1),
-      avgDoubles: (sum.doubles / n).toFixed(1),
-      avgSoreness: (sum.soreness / n).toFixed(1),
-      bestRound: sum.best,
-      recentFive
-    };
-  }, [roundLogs]);
 
   const fieldByHandicap = useMemo(() => [...FIELD_PLAYERS].sort((a, b) => a.handicap - b.handicap), []);
   const youPlayer = useMemo(
@@ -423,11 +339,6 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
       ...prev
     ]);
     setPracticeDraft((prev) => ({ ...prev, result: "", notes: "" }));
-  };
-
-  const addRoundLog = () => {
-    setRoundLogs((prev) => [{ id: toId(), ...roundDraft }, ...prev]);
-    setRoundDraft((prev) => ({ ...prev, notes: "" }));
   };
 
   const startTodaysPlan = () => {
@@ -713,59 +624,41 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
       {activeTab === "performance" ? (
         <div className="space-y-4">
           <Card>
-            <SectionTitle title="Round journal" subtitle="Track consistency. Eliminate blow-up holes." />
-            <div className="grid grid-cols-2 gap-2">
-              {roundFieldConfig.map((field) => (
-                <label key={field.key} className="text-xs text-muted">
-                  {field.label}
-                  <input
-                    type={field.type}
-                    className={`${textInputClass} mt-1`}
-                    value={roundDraft[field.key]}
-                    onChange={(event) =>
-                      setRoundDraft((prev) => ({
-                        ...prev,
-                        [field.key]:
-                          field.type === "number" ? Number(event.target.value) : event.target.value
-                      }))
-                    }
-                  />
-                </label>
-              ))}
+            <SectionTitle
+              title="Performance sync"
+              subtitle="Enter scores once in GHIN or TheGrint. No double logging."
+            />
+            <div className="space-y-3">
+              <a
+                href={THE_GRINT_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="block rounded-xl border border-sand/55 bg-sand/10 p-3 text-sm font-semibold text-sand hover:bg-sand/20"
+              >
+                Open TheGrint profile
+              </a>
+              <a
+                href={GHIN_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="block rounded-xl border border-white/20 bg-black/20 p-3 text-sm font-semibold text-text hover:border-white/35"
+              >
+                Open GHIN app / portal
+              </a>
             </div>
-            <label className="mt-2 block text-xs text-muted">
-              Notes
-              <textarea
-                className={`${textInputClass} mt-1 min-h-20`}
-                value={roundDraft.notes}
-                onChange={(event) => setRoundDraft((prev) => ({ ...prev, notes: event.target.value }))}
-              />
-            </label>
-            <button type="button" className={`${buttonClass} mt-3 w-full`} onClick={addRoundLog}>
-              Save Round
-            </button>
+            <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
+              <p className="text-xs uppercase tracking-wide text-muted">Connected sources</p>
+              <p className="mt-1 text-text">TheGrint profile and GHIN record</p>
+              <p className="mt-1 text-xs text-muted">GHIN number: {GHIN_NUMBER}</p>
+            </div>
           </Card>
 
           <Card>
-            <SectionTitle title="Performance dashboard" subtitle="Target: 79-84 with no blow-up holes." />
-            {performanceStats ? (
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <Metric label="Average score" value={performanceStats.avgScore} />
-                <Metric label="Average fairways" value={performanceStats.avgFairways} />
-                <Metric label="Average GIR" value={performanceStats.avgGir} />
-                <Metric label="Average putts" value={performanceStats.avgPutts} />
-                <Metric label="Average penalties" value={performanceStats.avgPenalties} />
-                <Metric label="Doubles per round" value={performanceStats.avgDoubles} />
-                <Metric label="Soreness trend" value={performanceStats.avgSoreness} />
-                <Metric label="Best round" value={String(performanceStats.bestRound)} />
-                <div className="col-span-2 rounded-xl border border-white/10 bg-black/20 p-3">
-                  <p className="text-xs text-muted">Recent 5-round trend</p>
-                  <p className="mt-1 font-semibold">{performanceStats.recentFive.join(" • ") || "n/a"}</p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted">Log your first round to unlock dashboard metrics.</p>
-            )}
+            <SectionTitle title="Performance strategy" subtitle="Use official scoring apps as source of truth." />
+            <p className="text-sm text-muted">
+              Keep Project Pinnacle focused on preparation and decision-making. Track and attest every round in GHIN/TheGrint,
+              then review trends there.
+            </p>
           </Card>
 
           <Card>
@@ -1054,9 +947,6 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                         ...prev,
                         [field]: value
                       }));
-                      if (field === "course") {
-                        setRoundDraft((roundPrev) => ({ ...roundPrev, course: value }));
-                      }
                     }}
                   />
                 </label>
@@ -1164,15 +1054,6 @@ function formatDelta(value: number) {
     return `+${value}`;
   }
   return `${value}`;
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-      <p className="text-xs text-muted">{label}</p>
-      <p className="text-lg font-semibold text-text">{value}</p>
-    </div>
-  );
 }
 
 function MiniCard({ title, lines }: { title: string; lines: string[] }) {
