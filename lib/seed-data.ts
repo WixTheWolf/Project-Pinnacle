@@ -345,7 +345,7 @@ function createDefaultDailyTasks(): DailyTask[] {
   const tasks: DailyTask[] = [
     { id: generateId(), label: "Hip mobility flow (15 min)", category: "mobility", completed: false, href: "/recovery" },
     { id: generateId(), label: "Wedge clock system drill", category: "practice", completed: false, href: "/practice" },
-    { id: generateId(), label: "Log yesterday's round stats", category: "stats", completed: false, href: "/stats" },
+    { id: generateId(), label: "Log yesterday's round stats", category: "stats", completed: false, href: "/performance" },
     { id: generateId(), label: "Hydration check — 100oz target", category: "recovery", completed: false, href: "/recovery" },
     { id: generateId(), label: "Review Gamble Sands course notes", category: "tournament", completed: false, href: "/tournament" },
   ];

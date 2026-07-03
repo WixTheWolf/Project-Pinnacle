@@ -67,33 +67,60 @@ export function getDaysUntil(dateStr: string): number {
 
 export function updateStreaks(state: PinnacleState): PinnacleState {
   const today = todayISO();
-  const streaks = state.streaks.map((streak) => {
-    let current = streak.current;
 
+  const updateStreak = (
+    streak: PinnacleState["streaks"][number],
+    doneToday: boolean
+  ): PinnacleState["streaks"][number] => {
+    if (doneToday) {
+      const current =
+        streak.lastCompletedDate && isYesterday(streak.lastCompletedDate)
+          ? streak.current + 1
+          : 1;
+      return {
+        ...streak,
+        current,
+        best: Math.max(streak.best, current),
+        lastCompletedDate: today,
+      };
+    }
+
+    if (
+      streak.lastCompletedDate &&
+      !isSameDay(streak.lastCompletedDate, today) &&
+      !isYesterday(streak.lastCompletedDate)
+    ) {
+      return { ...streak, current: 0 };
+    }
+
+    return streak;
+  };
+
+  const streaks = state.streaks.map((streak) => {
     if (streak.category === "mobility") {
       const done = state.recoverySessions.some(
         (s) => s.category === "mobility" && isSameDay(s.date, today) && s.completed
       );
-      if (done) {
-        current = streak.lastCompletedDate && isYesterday(streak.lastCompletedDate)
-          ? streak.current + 1
-          : 1;
-      } else if (streak.lastCompletedDate && !isSameDay(streak.lastCompletedDate, today) && !isYesterday(streak.lastCompletedDate)) {
-        current = 0;
-      }
-      if (done) return { ...streak, current, best: Math.max(streak.best, current), lastCompletedDate: today };
+      return updateStreak(streak, done);
     }
 
     if (streak.id === "streak-practice") {
       const done = state.practiceSessions.some((s) => isSameDay(s.date, today) && s.completed);
-      if (done) {
-        current = streak.lastCompletedDate && isYesterday(streak.lastCompletedDate)
-          ? streak.current + 1
-          : 1;
-      } else if (streak.lastCompletedDate && !isSameDay(streak.lastCompletedDate, today) && !isYesterday(streak.lastCompletedDate)) {
-        current = 0;
-      }
-      if (done) return { ...streak, current, best: Math.max(streak.best, current), lastCompletedDate: today };
+      return updateStreak(streak, done);
+    }
+
+    if (streak.id === "streak-recovery") {
+      const done = state.recoverySessions.some(
+        (s) => s.category !== "hydration" && isSameDay(s.date, today) && s.completed
+      );
+      return updateStreak(streak, done);
+    }
+
+    if (streak.id === "streak-hydration") {
+      const done = state.recoverySessions.some(
+        (s) => s.category === "hydration" && isSameDay(s.date, today) && s.completed
+      );
+      return updateStreak(streak, done);
     }
 
     return streak;
@@ -126,11 +153,4 @@ export function getCurrentPhaseName(phaseId: string): string {
     tournament: "Tournament",
   };
   return phases[phaseId] ?? "Build";
-}
-
-export function getHandicapProgress(current: number, goal: number): number {
-  const totalDrop = current - goal;
-  const currentDrop = 0;
-  if (totalDrop <= 0) return 100;
-  return Math.round((currentDrop / totalDrop) * 100);
 }

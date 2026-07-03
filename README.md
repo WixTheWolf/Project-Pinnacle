@@ -2,17 +2,15 @@
 
 **Road to Gamble Sands**
 
-A personal performance operating system for tournament golf preparation.
+A mobile-first personal performance operating system for tournament golf preparation.
 
 ## Tech Stack
 
 - Next.js (App Router)
 - TypeScript
 - Tailwind CSS
-- shadcn/ui patterns
 - Framer Motion
 - Recharts
-- React Hook Form + Zod
 - LocalStorage (MVP) → Supabase (future)
 - PWA-ready manifest
 
@@ -28,14 +26,27 @@ Open [http://localhost:3000](http://localhost:3000)
 ## Project Structure
 
 ```
-/app          → Routes (Today, Practice, Recovery, Stats, Tournament)
+/app          → Routes (Today, Plan, Practice, Recovery, Performance, Tournament)
 /components   → Shared UI and layout
 /features     → Feature modules (components, hooks, types, utils)
 /hooks        → Global hooks (PinnacleProvider, data persistence)
-/lib          → Utilities, constants, seed data, readiness logic
+/lib          → Utilities, constants, seed data, readiness & plan logic
 /styles       → Global CSS and design tokens
 /types        → Shared TypeScript interfaces
 ```
+
+## Core Areas
+
+| Tab | Route | Purpose |
+|-----|-------|---------|
+| Today | `/today` | Daily command center — what to do first |
+| Plan | `/plan` | Road to Gamble Sands, periodization, weekly focus |
+| Practice | `/practice` | Focused drills and session logging |
+| Recovery | `/recovery` | Mobility, sleep, readiness inputs |
+| Performance | `/performance` | Insight-driven scoring trends and round log |
+| Event | `/tournament` | Gamble Sands prep, packing, warmup, journal |
+
+`/stats` redirects to `/performance` for backward compatibility.
 
 ## Architecture
 

@@ -38,10 +38,11 @@ export const TRAINING_PHASES = [
 
 export const NAV_ITEMS = [
   { href: "/today", label: "Today", icon: "Sun" },
+  { href: "/plan", label: "Plan", icon: "Map" },
   { href: "/practice", label: "Practice", icon: "Target" },
   { href: "/recovery", label: "Recovery", icon: "Heart" },
-  { href: "/stats", label: "Stats", icon: "BarChart3" },
-  { href: "/tournament", label: "Tournament", icon: "Trophy" },
+  { href: "/performance", label: "Perf", icon: "TrendingUp" },
+  { href: "/tournament", label: "Event", icon: "Trophy" },
 ] as const;
 
 export const READINESS_WEIGHTS = {

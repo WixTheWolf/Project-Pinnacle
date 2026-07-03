@@ -1,7 +1,7 @@
 # Today Feature
 
 ## Purpose
-The Today screen is the daily operating system hub. It answers "What should Matt do today to become a better golfer?" by surfacing readiness, tasks, countdown, streaks, and coaching guidance.
+The Today screen is the daily command center. It answers **"What should Matt do today?"** with a single primary action, mission checklist, readiness, and streak context.
 
 ## Architecture
 - `TodayScreen` is a client component consuming `usePinnacle` context

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { StatCard } from "@/components/ui/stat-card";
 import { usePinnacle, useRounds } from "@/hooks/use-pinnacle-data";
+import { getPerformanceInsights } from "@/lib/performance-insights";
 
 interface RoundForm {
   date: string;
@@ -54,11 +55,19 @@ const emptyForm: RoundForm = {
   notes: "",
 };
 
-export function StatsScreen() {
+const insightVariant: Record<string, "gold" | "green" | "red" | "muted"> = {
+  gold: "gold",
+  green: "green",
+  red: "red",
+  muted: "muted",
+};
+
+export function PerformanceScreen() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<RoundForm>(emptyForm);
   const { logRound } = usePinnacle();
   const rounds = useRounds();
+  const insights = useMemo(() => getPerformanceInsights(rounds), [rounds]);
 
   const chartData = [...rounds]
     .reverse()
@@ -66,18 +75,12 @@ export function StatsScreen() {
     .map((r) => ({
       date: new Date(r.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
       score: r.score,
-      putts: r.putts,
-      gir: r.girTotal > 0 ? Math.round((r.gir / r.girTotal) * 100) : 0,
     }));
 
   const latestRound = rounds[0];
   const avgScore =
     rounds.length > 0
       ? Math.round(rounds.reduce((sum, r) => sum + r.score, 0) / rounds.length)
-      : null;
-  const avgPutts =
-    rounds.length > 0
-      ? (rounds.reduce((sum, r) => sum + r.putts, 0) / rounds.length).toFixed(1)
       : null;
 
   const handleSubmit = () => {
@@ -145,9 +148,9 @@ export function StatsScreen() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Stats</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Performance</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Track trends. Find patterns. Score lower.
+            Patterns, weaknesses, and progress toward 3.
           </p>
         </div>
         <Button size="icon" onClick={() => setShowForm(true)} aria-label="Log new round">
@@ -155,31 +158,37 @@ export function StatsScreen() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard
-          label="Last Score"
-          value={latestRound?.score ?? "—"}
-          subtext={latestRound?.course}
-        />
-        <StatCard label="Avg Score" value={avgScore ?? "—"} subtext={`${rounds.length} rounds`} />
-        <StatCard label="Avg Putts" value={avgPutts ?? "—"} />
-        <StatCard
-          label="Last GIR"
-          value={
-            latestRound && latestRound.girTotal > 0
-              ? `${Math.round((latestRound.gir / latestRound.girTotal) * 100)}%`
-              : "—"
-          }
-        />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Insights</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {insights.map((insight) => (
+            <div key={insight.id} className="rounded-xl border border-border bg-background/40 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-medium">{insight.title}</p>
+                <Badge variant={insightVariant[insight.tone]}>{insight.tone}</Badge>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{insight.detail}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
-      {chartData.length > 1 && (
+      {rounds.length > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard label="Last score" value={latestRound?.score ?? "—"} subtext={latestRound?.course} />
+          <StatCard label="Average" value={avgScore ?? "—"} subtext={`${rounds.length} rounds`} />
+        </div>
+      )}
+
+      {chartData.length > 2 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Score Trend</CardTitle>
+            <CardTitle className="text-base">Recent scoring</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={180}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="date" tick={{ fill: "#9CA3AF", fontSize: 11 }} />
@@ -201,10 +210,10 @@ export function StatsScreen() {
       {rounds.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Round History</CardTitle>
+            <CardTitle className="text-base">Round log</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {rounds.slice(0, 10).map((round) => (
+            {rounds.slice(0, 8).map((round) => (
               <div
                 key={round.id}
                 className="flex items-center justify-between rounded-xl bg-background/50 px-3 py-3"
@@ -217,10 +226,7 @@ export function StatsScreen() {
                     {new Date(round.date).toLocaleDateString()} · {round.putts} putts · {round.gir}/{round.girTotal} GIR
                   </p>
                 </div>
-                <div className="flex gap-1">
-                  {round.birdies > 0 && <Badge variant="green">{round.birdies} birdie{round.birdies > 1 ? "s" : ""}</Badge>}
-                  {round.doubles > 0 && <Badge variant="red">{round.doubles} double+</Badge>}
-                </div>
+                {round.doubles > 0 && <Badge variant="red">{round.doubles} double+</Badge>}
               </div>
             ))}
           </CardContent>
@@ -228,9 +234,9 @@ export function StatsScreen() {
       ) : (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No rounds logged yet.</p>
+            <p className="text-muted-foreground">Log a round to unlock performance insights.</p>
             <Button onClick={() => setShowForm(true)} className="mt-4" variant="outline">
-              Log Your First Round
+              Log round
             </Button>
           </CardContent>
         </Card>

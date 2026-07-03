@@ -22,6 +22,7 @@ import type {
   Readiness,
   RecoverySession,
   Round,
+  RoundJournalEntry,
 } from "@/types";
 
 interface PinnacleContextValue {
@@ -32,6 +33,7 @@ interface PinnacleContextValue {
   logPracticeSession: (session: Omit<PracticeSession, "id" | "createdAt">) => void;
   logRecoverySession: (session: Omit<RecoverySession, "id" | "createdAt">) => void;
   logRound: (round: Omit<Round, "id" | "createdAt">) => void;
+  addJournalEntry: (entry: Omit<RoundJournalEntry, "id">) => void;
   togglePackingItem: (itemId: string) => void;
   toggleNutritionItem: (itemId: string) => void;
   resetDailyTasks: () => void;
@@ -150,6 +152,23 @@ export function PinnacleProvider({ children }: { children: ReactNode }) {
     [updateState]
   );
 
+  const addJournalEntry = useCallback(
+    (entry: Omit<RoundJournalEntry, "id">) => {
+      const newEntry: RoundJournalEntry = {
+        ...entry,
+        id: generateId(),
+      };
+      updateState((prev) => ({
+        ...prev,
+        tournament: {
+          ...prev.tournament,
+          roundJournal: [newEntry, ...prev.tournament.roundJournal],
+        },
+      }));
+    },
+    [updateState]
+  );
+
   const togglePackingItem = useCallback(
     (itemId: string) => {
       updateState((prev) => ({
@@ -198,6 +217,7 @@ export function PinnacleProvider({ children }: { children: ReactNode }) {
       logPracticeSession,
       logRecoverySession,
       logRound,
+      addJournalEntry,
       togglePackingItem,
       toggleNutritionItem,
       resetDailyTasks,
@@ -210,6 +230,7 @@ export function PinnacleProvider({ children }: { children: ReactNode }) {
       logPracticeSession,
       logRecoverySession,
       logRound,
+      addJournalEntry,
       togglePackingItem,
       toggleNutritionItem,
       resetDailyTasks,

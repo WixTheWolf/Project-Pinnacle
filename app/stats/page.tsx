@@ -1,10 +1,5 @@
-import { AppShell } from "@/components/layout/app-shell";
-import { StatsScreen } from "@/features/stats/components/stats-screen";
+import { redirect } from "next/navigation";
 
-export default function StatsPage() {
-  return (
-    <AppShell>
-      <StatsScreen />
-    </AppShell>
-  );
+export default function StatsRedirectPage() {
+  redirect("/performance");
 }
