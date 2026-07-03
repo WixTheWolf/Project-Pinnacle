@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { ReactNode, useState } from "react";
 import Link from "next/link";
 import { TabKey } from "@/lib/types";
-import { BarChart3, CalendarCheck2, Check, ChevronDown, Dumbbell, HeartPulse, House } from "lucide-react";
+import { BarChart3, CalendarCheck2, Check, ChevronDown, Dumbbell, HeartPulse, House, Users2 } from "lucide-react";
 
 export function Card({
   children,
@@ -77,6 +77,7 @@ const tabs: { key: TabKey; label: string; icon: ReactNode }[] = [
   { key: "practice", label: "Practice", icon: <Dumbbell size={16} /> },
   { key: "recovery", label: "Recovery", icon: <HeartPulse size={16} /> },
   { key: "performance", label: "Performance", icon: <BarChart3 size={16} /> },
+  { key: "field", label: "Field", icon: <Users2 size={16} /> },
   { key: "tournament", label: "Tournament", icon: <CalendarCheck2 size={16} /> }
 ];
 
@@ -85,13 +86,14 @@ const tabHref: Record<TabKey, string> = {
   practice: "/practice",
   recovery: "/recovery",
   performance: "/performance",
+  field: "/field",
   tournament: "/tournament"
 };
 
 export function BottomTabs({ active }: { active: TabKey }) {
   return (
     <nav aria-label="Primary navigation" className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#111827]/95 backdrop-blur">
-      <ul className="mx-auto grid max-w-md grid-cols-5">
+      <ul className="mx-auto grid max-w-md grid-cols-6">
         {tabs.map((tab) => (
           <li key={tab.key}>
             <Link

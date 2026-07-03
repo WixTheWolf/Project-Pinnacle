@@ -17,10 +17,11 @@ import {
   WARMUP_40,
   WEEKLY_TEMPLATE
 } from "@/lib/content";
+import { FIELD_PLAYERS, SKILL_CATEGORIES, SKILL_LABELS, SkillCategory } from "@/lib/field-data";
 import { ChecklistState, PracticeLog, ReadinessEntry, RoundLog, Settings, TabKey } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { BottomTabs, Card, Checklist, CollapsibleCard, Pill, ProgressBar, SectionTitle } from "@/components/ui";
-import { Clock3, Flame, Gauge, Play, Target } from "lucide-react";
+import { ChevronDown, Clock3, Flame, Gauge, Play, Target } from "lucide-react";
 
 const READINESS_KEYS = [
   "sleep",
@@ -355,6 +356,33 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
       recentFive
     };
   }, [roundLogs]);
+
+  const fieldByHandicap = useMemo(() => [...FIELD_PLAYERS].sort((a, b) => a.handicap - b.handicap), []);
+  const youPlayer = useMemo(
+    () => fieldByHandicap.find((player) => player.isYou) ?? fieldByHandicap[0],
+    [fieldByHandicap]
+  );
+  const opponents = useMemo(
+    () => fieldByHandicap.filter((player) => player.id !== youPlayer.id),
+    [fieldByHandicap, youPlayer.id]
+  );
+
+  const fieldSkillAverages = useMemo(() => {
+    const source = opponents.length > 0 ? opponents : fieldByHandicap;
+    return SKILL_CATEGORIES.reduce<Record<SkillCategory, number>>((acc, category) => {
+      acc[category] =
+        source.reduce((sum, player) => sum + player.skills[category], 0) / Math.max(source.length, 1);
+      return acc;
+    }, {} as Record<SkillCategory, number>);
+  }, [fieldByHandicap, opponents]);
+
+  const yourSkillEdges = useMemo(() => {
+    return SKILL_CATEGORIES.map((category) => ({
+      category,
+      label: SKILL_LABELS[category],
+      delta: Math.round(youPlayer.skills[category] - fieldSkillAverages[category])
+    })).sort((a, b) => b.delta - a.delta);
+  }, [fieldSkillAverages, youPlayer.skills]);
 
   const toggleChecklist = (key: string) => {
     setDailyChecklist((prev) => ({
@@ -748,6 +776,145 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
         </div>
       ) : null}
 
+      {activeTab === "field" ? (
+        <div className="space-y-4">
+          <Card className="field-hero-gradient overflow-hidden border-sand/35">
+            <p className="text-xs uppercase tracking-[0.2em] text-sand">Gamble Sands Field</p>
+            <h2 className="mt-2 text-3xl font-semibold leading-tight text-white">Know the group. Prepare the edge.</h2>
+            <p className="mt-2 max-w-[34ch] text-sm text-slate-200/90">
+              Who you&apos;re playing with, where pressure points are, and how to prepare the smartest game plan.
+            </p>
+          </Card>
+
+          <Card className="field-card-enter border-sand/45">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-sand">Featured player</p>
+                <h3 className="mt-1 text-2xl font-semibold text-white">{youPlayer.name}</h3>
+                <p className="text-sm text-muted">You · {youPlayer.handedness}-handed</p>
+              </div>
+              <HandicapBadge handicap={youPlayer.handicap} />
+            </div>
+
+            <div className="mt-3 rounded-xl border border-white/10 bg-black/25 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted">Current focus</p>
+              <p className="mt-1 text-sm text-text">{youPlayer.currentFocus}</p>
+              <p className="mt-2 text-xs text-sand">Goal handicap: {settings.goalHandicap}</p>
+            </div>
+
+            <div className="mt-3">
+              <SkillBars skills={youPlayer.skills} compact />
+            </div>
+          </Card>
+
+          <Card className="field-card-enter">
+            <SectionTitle
+              title="Field comparison"
+              subtitle="Simple scouting view. No leaderboard noise."
+            />
+            <div className="space-y-2">
+              {[youPlayer, ...opponents].map((player) => (
+                <div
+                  key={player.id}
+                  className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-text">
+                      {player.name} {player.isYou ? <span className="text-sand">· You</span> : null}
+                    </p>
+                    <p className="text-xs text-muted">
+                      Top strengths: {topSkillLabels(player.skills).join(" · ")}
+                    </p>
+                  </div>
+                  <HandicapBadge handicap={player.handicap} />
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 rounded-xl border border-white/10 bg-black/25 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted">{settings.preferredName} edge map</p>
+              <ul className="mt-2 space-y-1 text-sm">
+                {yourSkillEdges.slice(0, 2).map((edge) => (
+                  <li
+                    key={edge.category}
+                    className={edge.delta >= 0 ? "text-green-300" : "text-danger"}
+                  >
+                    {formatDelta(edge.delta)} in {edge.label}
+                  </li>
+                ))}
+                {yourSkillEdges[yourSkillEdges.length - 1] ? (
+                  <li className="text-sand">
+                    Focus today: {yourSkillEdges[yourSkillEdges.length - 1].label} (
+                    {formatDelta(yourSkillEdges[yourSkillEdges.length - 1].delta)} vs field)
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+          </Card>
+
+          <div className="space-y-3">
+            <SectionTitle title="Player profiles" subtitle="Who you are playing with, and what to know." />
+            {opponents.map((player, idx) => (
+              <details
+                key={player.id}
+                className="field-card-enter group rounded-2xl border border-white/10 bg-card p-4 shadow-soft [&_summary::-webkit-details-marker]:hidden"
+                style={{ animationDelay: `${(idx + 1) * 45}ms` }}
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">{player.name}</h3>
+                    <p className="text-xs text-muted">
+                      {player.handedness}-handed · {player.playingStyle}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <HandicapBadge handicap={player.handicap} />
+                    <ChevronDown size={16} className="text-muted transition group-open:rotate-180 group-open:text-sand" />
+                  </div>
+                </summary>
+
+                <div className="mt-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                      <p className="text-xs uppercase tracking-wide text-muted">Strengths</p>
+                      <ul className="mt-2 space-y-1 text-green-300">
+                        {player.strengths.map((item) => (
+                          <li key={item}>- {item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                      <p className="text-xs uppercase tracking-wide text-muted">Weaknesses</p>
+                      <ul className="mt-2 space-y-1 text-sand">
+                        {player.weaknesses.map((item) => (
+                          <li key={item}>- {item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                    <p className="text-xs uppercase tracking-wide text-muted">Skill profile</p>
+                    <div className="mt-2">
+                      <SkillBars skills={player.skills} />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                    <p className="text-xs uppercase tracking-wide text-muted">Notes</p>
+                    <p className="mt-1 text-sm text-text">{player.notes}</p>
+                  </div>
+
+                  <div className="rounded-xl border border-sand/30 bg-sand/5 p-3">
+                    <p className="text-xs uppercase tracking-wide text-sand">Matchup insight</p>
+                    <p className="mt-1 text-sm text-text">{player.matchupInsight}</p>
+                  </div>
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {activeTab === "tournament" ? (
         <div className="space-y-4">
           <Card>
@@ -897,6 +1064,55 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
       <BottomTabs active={activeTab} />
     </main>
   );
+}
+
+function HandicapBadge({ handicap }: { handicap: number }) {
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full border border-sand/55 bg-sand/15 px-3 py-1 text-sm font-semibold text-sand">
+      HCP {handicap.toFixed(1)}
+    </span>
+  );
+}
+
+function SkillBars({
+  skills,
+  compact = false
+}: {
+  skills: Record<SkillCategory, number>;
+  compact?: boolean;
+}) {
+  return (
+    <div className={compact ? "space-y-1.5" : "space-y-2"}>
+      {SKILL_CATEGORIES.map((category) => (
+        <div key={category}>
+          <div className="mb-1 flex items-center justify-between text-xs">
+            <span className="text-muted">{SKILL_LABELS[category]}</span>
+            <span className="font-medium text-text">{skills[category]}</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-black/35">
+            <div
+              className="h-1.5 rounded-full bg-gradient-to-r from-sand to-turf transition-all duration-300"
+              style={{ width: `${Math.max(3, Math.min(100, skills[category]))}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function topSkillLabels(skills: Record<SkillCategory, number>) {
+  return [...SKILL_CATEGORIES]
+    .sort((a, b) => skills[b] - skills[a])
+    .slice(0, 2)
+    .map((category) => SKILL_LABELS[category]);
+}
+
+function formatDelta(value: number) {
+  if (value > 0) {
+    return `+${value}`;
+  }
+  return `${value}`;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

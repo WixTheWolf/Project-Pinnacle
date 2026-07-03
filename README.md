@@ -12,7 +12,7 @@ Road to Gamble Sands - a premium, mobile-first golf performance web app for Matt
 
 ## Features
 
-- Bottom-tab mobile UX: **Today / Practice / Recovery / Performance / Tournament**
+- Bottom-tab mobile UX: **Today / Practice / Recovery / Performance / Field / Tournament**
 - Daily readiness scoring (sleep, energy, body, stress, confidence) with color-coded training guidance
 - Daily checklist system with day reset behavior and completion streaks
 - 7-week periodization overview and day-by-day training structure
@@ -29,6 +29,11 @@ Road to Gamble Sands - a premium, mobile-first golf performance web app for Matt
   - Packing checklist
   - Binder/manual quick cards
 - Customization panel for date, course, handicap, schedule, drill targets, and more
+- Premium Field scouting screen for Gamble Sands group:
+  - Featured **You** card
+  - Player profile cards with strengths/weaknesses/style/notes/matchup insight
+  - Skill bars across driving, approach, wedges, putting, short game, course management, mental game, and durability
+  - Quick comparison card for handicap and top skill edges
 
 ## LocalStorage keys
 
