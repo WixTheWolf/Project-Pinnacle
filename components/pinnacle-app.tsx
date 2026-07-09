@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   DAILY_MOBILITY,
@@ -27,7 +27,25 @@ import {
 } from "@/lib/field-data";
 import { ChecklistState, PracticeLog, ReadinessEntry, RoundLog, Settings, TabKey } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { BottomTabs, Card, Checklist, CollapsibleCard, Pill, ProgressBar, SectionTitle } from "@/components/ui";
+import {
+  BottomTabs,
+  Card,
+  Checklist,
+  CollapsibleCard,
+  Eyebrow,
+  Pill,
+  ProgressBar,
+  SectionTitle,
+  StatCard
+} from "@/components/ui";
+import {
+  HabitHeatmap,
+  ProgressRing,
+  ScoreTrendChart,
+  SkillRadar,
+  TargetMeter
+} from "@/components/charts";
+import { DrillDiagram } from "@/components/drill-diagrams";
 import { ChevronDown, Clock3, Flame, Gauge, Play, Target } from "lucide-react";
 
 const READINESS_KEYS = [
@@ -61,9 +79,9 @@ const formatDate = (value: string) =>
 const toId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const textInputClass =
-  "w-full rounded-xl border border-white/15 bg-black/25 px-3 py-2 text-sm text-text outline-none focus:border-sand";
+  "w-full rounded-xl border border-white/10 bg-well px-3 py-2 text-sm text-text outline-none transition focus:border-sand/60";
 const buttonClass =
-  "rounded-xl border border-sand/60 bg-sand/15 px-4 py-2 text-sm font-semibold text-sand transition hover:bg-sand/25";
+  "rounded-xl border border-sand/50 bg-sand/[0.12] px-4 py-2.5 text-sm font-semibold text-sand transition hover:bg-sand/20 active:scale-[0.99]";
 
 const roundFieldConfig: Array<{
   key: keyof Omit<RoundLog, "id" | "notes">;
@@ -256,6 +274,8 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
     notes: ""
   });
 
+  const [drillFilter, setDrillFilter] = useState("All");
+
   const ready =
     settingsHydrated &&
     readinessHydrated &&
@@ -331,6 +351,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
         acc.putts += round.putts;
         acc.penalties += round.penalties;
         acc.doubles += round.doublesOrWorse;
+        acc.birdies += round.birdies;
         acc.soreness += round.soreness;
         acc.best = Math.min(acc.best, round.score);
         return acc;
@@ -342,25 +363,27 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
         putts: 0,
         penalties: 0,
         doubles: 0,
+        birdies: 0,
         soreness: 0,
         best: Number.POSITIVE_INFINITY
       }
     );
     const n = roundLogs.length;
-    const recentFive = [...roundLogs]
-      .sort((a, b) => parseDateKey(b.date).getTime() - parseDateKey(a.date).getTime())
-      .slice(0, 5)
-      .map((round) => round.score);
+    const chronological = [...roundLogs].sort(
+      (a, b) => parseDateKey(a.date).getTime() - parseDateKey(b.date).getTime()
+    );
     return {
       avgScore: (sum.score / n).toFixed(1),
-      avgFairways: (sum.fairways / n).toFixed(1),
-      avgGir: (sum.gir / n).toFixed(1),
-      avgPutts: (sum.putts / n).toFixed(1),
-      avgPenalties: (sum.penalties / n).toFixed(1),
-      avgDoubles: (sum.doubles / n).toFixed(1),
+      avgFairways: sum.fairways / n,
+      avgGir: sum.gir / n,
+      avgPutts: sum.putts / n,
+      avgPenalties: sum.penalties / n,
+      avgDoubles: sum.doubles / n,
+      avgBirdies: sum.birdies / n,
       avgSoreness: (sum.soreness / n).toFixed(1),
       bestRound: sum.best,
-      recentFive
+      trendScores: chronological.map((round) => round.score),
+      trendDates: chronological.map((round) => formatDate(round.date))
     };
   }, [roundLogs]);
 
@@ -390,6 +413,15 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
       delta: Math.round(youPlayer.skills[category] - fieldSkillAverages[category])
     })).sort((a, b) => b.delta - a.delta);
   }, [fieldSkillAverages, youPlayer.skills]);
+
+  const drillSections = useMemo(
+    () => ["All", ...Array.from(new Set(PRACTICE_DRILLS.map((drill) => drill.section)))],
+    []
+  );
+  const visibleDrills = useMemo(
+    () => PRACTICE_DRILLS.filter((drill) => drillFilter === "All" || drill.section === drillFilter),
+    [drillFilter]
+  );
 
   const toggleChecklist = (key: string) => {
     setDailyChecklist((prev) => ({
@@ -442,18 +474,28 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-md bg-bg px-4 pb-24 pt-5 text-text">
-      <header className="mb-5 space-y-2">
-        <p className="text-xs uppercase tracking-[0.25em] text-sand">Road to Gamble Sands</p>
-        <h1 className="text-[30px] font-semibold leading-none">Project Pinnacle</h1>
-        <p className="text-sm text-muted">Do today&apos;s work, {settings.preferredName}.</p>
+    <main className="mx-auto min-h-screen max-w-md px-4 pb-28 pt-6 text-text">
+      <header className="mb-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <Eyebrow>Road to Gamble Sands</Eyebrow>
+            <h1 className="mt-1.5 font-display text-[34px] font-semibold leading-none tracking-tight">
+              Project Pinnacle
+            </h1>
+            <p className="mt-2 text-sm text-muted">Do today&apos;s work, {settings.preferredName}.</p>
+          </div>
+          <div className="well flex shrink-0 flex-col items-center rounded-2xl px-3.5 py-2.5">
+            <span className="font-display text-2xl font-semibold leading-none text-sand">{countdown}</span>
+            <span className="mt-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-faint">days out</span>
+          </div>
+        </div>
       </header>
 
       {activeTab === "today" ? (
         <div className="space-y-4">
-          <Card className="border-sand/40 bg-gradient-to-br from-sand/10 to-turf/5">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-sand">Daily Command</p>
-            <h2 className="mt-2 text-2xl font-semibold leading-tight text-text">{todayPlan}</h2>
+          <Card hero className="rise-in">
+            <Eyebrow>Daily Command</Eyebrow>
+            <h2 className="mt-2 font-display text-2xl font-semibold leading-snug text-text">{todayPlan}</h2>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Pill tone="default">
                 <Clock3 size={12} className="mr-1 inline-block" />
@@ -464,7 +506,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                 {readinessState.label}
               </Pill>
             </div>
-            <p className="mt-3 text-sm text-muted">
+            <p className="mt-3 text-sm leading-relaxed text-muted">
               {readinessState.guidance} This keeps your body durable and your scoring clubs sharp for tournament week.
             </p>
             <p className="mt-2 text-xs text-sand">{readinessState.adjustment}</p>
@@ -474,23 +516,46 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
             </button>
           </Card>
 
-          <Card>
-            <div className="mb-2 flex items-center justify-between">
-              <SectionTitle title={`${countdown} days to tee off`} subtitle={`${settings.tournamentName} · ${settings.course}`} />
+          <Card className="rise-in">
+            <div className="grid grid-cols-2 items-start gap-2">
+              <ProgressRing
+                value={latestReadinessScore}
+                label="Readiness"
+                sublabel="/ 100"
+              />
+              <ProgressRing
+                value={progressToTournament}
+                color="#BA8A28"
+                centerValue={String(countdown)}
+                sublabel="days left"
+                label="To first tee"
+              />
+            </div>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs text-muted">
+                  {settings.tournamentName} · {settings.course}
+                </p>
+              </div>
               <Pill tone="sand">{currentPhase}</Pill>
             </div>
-            <ProgressBar value={progressToTournament} />
+            <div className="mt-2.5">
+              <ProgressBar value={progressToTournament} />
+            </div>
           </Card>
 
           <CollapsibleCard
-            title={`Readiness ${latestReadinessScore}/100`}
-            subtitle="Readiness supports your command plan."
+            title={`Readiness check-in — ${latestReadinessScore}/100`}
+            subtitle="Eight sliders set today's intensity."
             defaultOpen={false}
           >
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
               {READINESS_KEYS.map((key) => (
-                <label key={key} className="space-y-1 text-xs text-muted">
-                  <span className="capitalize">{key === "wristsHands" ? "Wrists/hands" : key}</span>
+                <label key={key} className="text-xs text-muted">
+                  <span className="flex items-baseline justify-between">
+                    <span className="capitalize">{key === "wristsHands" ? "Wrists/hands" : key}</span>
+                    <span className="text-sm font-semibold text-text">{readinessDraft[key]}</span>
+                  </span>
                   <input
                     type="range"
                     min={1}
@@ -499,9 +564,8 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                     onChange={(event) =>
                       setReadinessDraft((prev) => ({ ...prev, [key]: Number(event.target.value) }))
                     }
-                    className="w-full accent-sand"
+                    className="w-full"
                   />
-                  <span className="text-text">{readinessDraft[key]}</span>
                 </label>
               ))}
             </div>
@@ -510,16 +574,26 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
             </button>
           </CollapsibleCard>
 
-          <Card id="today-workflow">
-            <SectionTitle title="Today workflow" subtitle="Win the next shot. Keep it simple." />
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-text">{todayPlan}</div>
-            <div className="mt-3 flex items-center gap-2 text-xs text-muted">
-              <Flame size={14} className="text-sand" />
-              Mobility streak: <strong className="text-text">{mobilityStreak} days</strong>
+          <Card id="today-workflow" className="rise-in">
+            <SectionTitle eyebrow="Habit engine" title="Consistency map" subtitle="Every green square is a day the work got done." />
+            <HabitHeatmap history={habitHistory} />
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <StatCard
+                label="Mobility streak"
+                value={`${mobilityStreak}d`}
+                tone={mobilityStreak > 0 ? "green" : "default"}
+                sub="full mobility list done"
+              />
+              <StatCard
+                label="Practice streak"
+                value={`${practiceStreak}d`}
+                tone={practiceStreak > 0 ? "sand" : "default"}
+                sub="at least one logged drill"
+              />
             </div>
-            <div className="mt-1 flex items-center gap-2 text-xs text-muted">
-              <Target size={14} className="text-turf" />
-              Practice streak: <strong className="text-text">{practiceStreak} days</strong>
+            <div className="well mt-3 flex items-center gap-2 rounded-xl p-3 text-sm text-text">
+              <Flame size={15} className="shrink-0 text-sand" />
+              {todayPlan}
             </div>
           </Card>
 
@@ -549,64 +623,102 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
 
       {activeTab === "practice" ? (
         <div className="space-y-4">
-          <Card>
-            <SectionTitle title="Drill library" subtitle="Stack clean reps." />
-            <div className="space-y-3">
-              {PRACTICE_DRILLS.map((drill) => (
-                <div key={drill.name} className="rounded-xl border border-white/10 bg-black/20 p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-sand">{drill.section}</p>
-                      <h3 className="text-sm font-semibold">{drill.name}</h3>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPracticeDraft((prev) => ({
-                          ...prev,
-                          section: drill.section,
-                          drillName: drill.name
-                        }))
-                      }
-                      className={buttonClass}
-                    >
-                      Log Result
-                    </button>
-                  </div>
-                  <p className="mt-2 text-sm text-muted">{drill.purpose}</p>
-                  <p className="mt-1 text-xs text-muted">
-                    {drill.time} · {drill.reps}
-                  </p>
-                  <p className="mt-1 text-xs text-green-300">{drill.metric}</p>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-text">
-                    {drill.instructions.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+            {drillSections.map((section) => (
+              <button
+                key={section}
+                type="button"
+                onClick={() => setDrillFilter(section)}
+                className={
+                  drillFilter === section
+                    ? "shrink-0 rounded-full border border-sand/60 bg-sand/15 px-3.5 py-1.5 text-xs font-semibold text-sand"
+                    : "shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs font-medium text-muted transition hover:text-text"
+                }
+              >
+                {section}
+              </button>
+            ))}
+          </div>
 
-          <Card>
+          <div className="space-y-3">
+            {visibleDrills.map((drill, idx) => (
+              <Card key={drill.name} className="rise-in" style={{ animationDelay: `${idx * 40}ms` }}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <Eyebrow>{drill.section}</Eyebrow>
+                    <h3 className="mt-1 font-display text-lg font-semibold tracking-tight">{drill.name}</h3>
+                  </div>
+                  <Pill tone="default">
+                    <Clock3 size={11} className="mr-1 inline-block" />
+                    {drill.time}
+                  </Pill>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{drill.purpose}</p>
+
+                <div className="mt-3">
+                  <DrillDiagram section={drill.section} drillName={drill.name} />
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="well rounded-xl p-2.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Reps</p>
+                    <p className="mt-1 text-xs font-medium text-text">{drill.reps}</p>
+                  </div>
+                  <div className="well rounded-xl p-2.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Scoring</p>
+                    <p className="mt-1 text-xs font-medium text-turf">{drill.metric}</p>
+                  </div>
+                </div>
+
+                <ul className="mt-3 space-y-1.5 text-xs text-muted">
+                  {drill.instructions.map((item) => (
+                    <li key={item} className="flex gap-2">
+                      <span className="mt-[5px] h-1 w-1 shrink-0 rounded-full bg-sand/70" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPracticeDraft((prev) => ({
+                      ...prev,
+                      section: drill.section,
+                      drillName: drill.name
+                    }));
+                    document.getElementById("practice-log")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                  className={`${buttonClass} mt-4 w-full`}
+                >
+                  <Target size={14} className="mr-2 inline-block" />
+                  Log Result
+                </button>
+              </Card>
+            ))}
+          </div>
+
+          <Card id="practice-log">
             <SectionTitle title="Quick practice log" subtitle="Minimal typing. Capture the result." />
             <div className="space-y-3">
-              <label className="block text-xs text-muted">
-                Section
-                <input
-                  className={`${textInputClass} mt-1`}
-                  value={practiceDraft.section}
-                  onChange={(event) => setPracticeDraft((prev) => ({ ...prev, section: event.target.value }))}
-                />
-              </label>
-              <label className="block text-xs text-muted">
-                Drill name
-                <input
-                  className={`${textInputClass} mt-1`}
-                  value={practiceDraft.drillName}
-                  onChange={(event) => setPracticeDraft((prev) => ({ ...prev, drillName: event.target.value }))}
-                />
-              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-xs text-muted">
+                  Section
+                  <input
+                    className={`${textInputClass} mt-1`}
+                    value={practiceDraft.section}
+                    onChange={(event) => setPracticeDraft((prev) => ({ ...prev, section: event.target.value }))}
+                  />
+                </label>
+                <label className="block text-xs text-muted">
+                  Drill name
+                  <input
+                    className={`${textInputClass} mt-1`}
+                    value={practiceDraft.drillName}
+                    onChange={(event) => setPracticeDraft((prev) => ({ ...prev, drillName: event.target.value }))}
+                  />
+                </label>
+              </div>
               <label className="block text-xs text-muted">
                 Result
                 <input
@@ -635,16 +747,20 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
             <SectionTitle title="Recent practice logs" />
             <div className="space-y-2">
               {practiceLogs.slice(0, 8).map((log) => (
-                <div key={log.id} className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
-                  <p className="text-xs text-muted">{formatDate(log.date)}</p>
-                  <p className="font-semibold">
-                    {log.section} · {log.drillName}
-                  </p>
-                  <p className="text-sand">{log.result}</p>
-                  {log.notes ? <p className="text-xs text-muted">{log.notes}</p> : null}
+                <div key={log.id} className="well rounded-xl p-3 text-sm">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="font-semibold text-text">
+                      {log.section} · {log.drillName}
+                    </p>
+                    <p className="shrink-0 text-[10px] text-faint">{formatDate(log.date)}</p>
+                  </div>
+                  <p className="mt-0.5 text-sm font-medium text-sand">{log.result}</p>
+                  {log.notes ? <p className="mt-1 text-xs text-muted">{log.notes}</p> : null}
                 </div>
               ))}
-              {practiceLogs.length === 0 ? <p className="text-sm text-muted">No practice logs yet.</p> : null}
+              {practiceLogs.length === 0 ? (
+                <p className="text-sm text-muted">No practice logs yet — log a drill above to start the record.</p>
+              ) : null}
             </div>
           </Card>
         </div>
@@ -712,6 +828,79 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
 
       {activeTab === "performance" ? (
         <div className="space-y-4">
+          <Card className="rise-in">
+            <SectionTitle
+              eyebrow="Scoring trend"
+              title="Rounds vs. the 79–84 window"
+              subtitle="Every logged round, oldest to newest. Green dot marks the best round."
+            />
+            {performanceStats && performanceStats.trendScores.length > 0 ? (
+              <ScoreTrendChart
+                scores={performanceStats.trendScores}
+                dates={performanceStats.trendDates}
+              />
+            ) : (
+              <div className="well rounded-xl p-6 text-center">
+                <p className="text-sm text-muted">Log your first round to draw the scoring trend.</p>
+              </div>
+            )}
+          </Card>
+
+          {performanceStats ? (
+            <>
+              <Card className="rise-in">
+                <SectionTitle eyebrow="Averages" title="Performance dashboard" />
+                <div className="grid grid-cols-3 gap-2">
+                  <StatCard label="Avg score" value={performanceStats.avgScore} tone="sand" />
+                  <StatCard label="Best round" value={String(performanceStats.bestRound)} tone="green" />
+                  <StatCard label="Soreness" value={performanceStats.avgSoreness} sub="post-round avg" />
+                </div>
+              </Card>
+
+              <Card className="rise-in">
+                <SectionTitle
+                  eyebrow="Target card"
+                  title="Tournament targets"
+                  subtitle="Round averages vs. what a 79–84 round requires. Green fill = on target."
+                />
+                <div className="space-y-4">
+                  <TargetMeter label="Fairways hit" value={performanceStats.avgFairways} target={8} max={14} />
+                  <TargetMeter label="Greens in regulation" value={performanceStats.avgGir} target={7} max={18} />
+                  <TargetMeter
+                    label="Putts"
+                    value={performanceStats.avgPutts}
+                    target={30}
+                    max={40}
+                    lowerIsBetter
+                  />
+                  <TargetMeter
+                    label="Penalty strokes"
+                    value={performanceStats.avgPenalties}
+                    target={1}
+                    max={4}
+                    lowerIsBetter
+                  />
+                  <TargetMeter
+                    label="Doubles or worse"
+                    value={performanceStats.avgDoubles}
+                    target={1}
+                    max={4}
+                    lowerIsBetter
+                  />
+                  <TargetMeter label="Birdies" value={performanceStats.avgBirdies} target={2} max={6} />
+                </div>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <SectionTitle
+                eyebrow="Target card"
+                title="Tournament targets"
+                subtitle="Fairways 8+ · GIR 7+ · Putts ≤30 · Penalties ≤1 · Doubles ≤1 · Birdies 2+ · Three-putts 0"
+              />
+            </Card>
+          )}
+
           <Card>
             <SectionTitle title="Round journal" subtitle="Track consistency. Eliminate blow-up holes." />
             <div className="grid grid-cols-2 gap-2">
@@ -745,41 +934,6 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               Save Round
             </button>
           </Card>
-
-          <Card>
-            <SectionTitle title="Performance dashboard" subtitle="Target: 79-84 with no blow-up holes." />
-            {performanceStats ? (
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <Metric label="Average score" value={performanceStats.avgScore} />
-                <Metric label="Average fairways" value={performanceStats.avgFairways} />
-                <Metric label="Average GIR" value={performanceStats.avgGir} />
-                <Metric label="Average putts" value={performanceStats.avgPutts} />
-                <Metric label="Average penalties" value={performanceStats.avgPenalties} />
-                <Metric label="Doubles per round" value={performanceStats.avgDoubles} />
-                <Metric label="Soreness trend" value={performanceStats.avgSoreness} />
-                <Metric label="Best round" value={String(performanceStats.bestRound)} />
-                <div className="col-span-2 rounded-xl border border-white/10 bg-black/20 p-3">
-                  <p className="text-xs text-muted">Recent 5-round trend</p>
-                  <p className="mt-1 font-semibold">{performanceStats.recentFive.join(" • ") || "n/a"}</p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted">Log your first round to unlock dashboard metrics.</p>
-            )}
-          </Card>
-
-          <Card>
-            <SectionTitle title="Target card" />
-            <ul className="space-y-1 text-sm">
-              <li>- Fairways: 8+</li>
-              <li>- GIR: 7+</li>
-              <li>- Putts: 30 or less</li>
-              <li>- Penalties: 0-1</li>
-              <li>- Doubles: 0-1</li>
-              <li>- Birdies: 2+</li>
-              <li>- Three-putts: 0</li>
-            </ul>
-          </Card>
         </div>
       ) : null}
 
@@ -788,7 +942,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
           <Card
             className="field-hero-gradient overflow-hidden border-sand/35"
             style={{
-              backgroundImage: `linear-gradient(145deg, rgba(17, 24, 39, 0.9), rgba(15, 23, 42, 0.88)), url('${STRAND_BRAND_ASSETS.heroImageUrl}')`,
+              backgroundImage: `linear-gradient(145deg, rgba(10, 15, 11, 0.92), rgba(8, 13, 10, 0.9)), url('${STRAND_BRAND_ASSETS.heroImageUrl}')`,
               backgroundSize: "cover",
               backgroundPosition: "center"
             }}
@@ -801,8 +955,10 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               className="h-8 w-auto opacity-90"
               priority={false}
             />
-            <p className="mt-3 text-xs uppercase tracking-[0.2em] text-sand">Gamble Sands Field</p>
-            <h2 className="mt-2 text-3xl font-semibold leading-tight text-white">Know the group. Prepare the edge.</h2>
+            <Eyebrow className="mt-3">Gamble Sands Field</Eyebrow>
+            <h2 className="mt-2 font-display text-3xl font-semibold leading-tight text-white">
+              Know the group. Prepare the edge.
+            </h2>
             <p className="mt-2 max-w-[34ch] text-sm text-slate-200/90">
               Sourced from the current public Strand roster and handicap feed snapshot so Matt can prep with the right information.
             </p>
@@ -811,8 +967,8 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
           <Card className="field-card-enter border-sand/45">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-wide text-sand">Featured player</p>
-                <h3 className="mt-1 text-2xl font-semibold text-white">
+                <Eyebrow>Featured player</Eyebrow>
+                <h3 className="mt-1 font-display text-2xl font-semibold text-white">
                   {youPlayer.name} <span className="text-sand">({youPlayer.nickname})</span>
                 </h3>
                 <p className="text-sm text-muted">
@@ -822,15 +978,33 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               <HandicapBadge handicap={youPlayer.handicap} label={youPlayer.handicapLabel} />
             </div>
 
-            <div className="mt-3 rounded-xl border border-white/10 bg-black/25 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted">Current focus</p>
-              <p className="mt-1 text-sm text-text">{youPlayer.currentFocus}</p>
-              <p className="mt-2 text-xs text-sand">Goal handicap: {settings.goalHandicap}</p>
-              <p className="mt-2 text-xs text-muted">{youPlayer.bio}</p>
+            <div className="mt-3">
+              <SkillRadar you={youPlayer.skills} field={fieldSkillAverages} youLabel={settings.preferredName} />
             </div>
 
-            <div className="mt-3">
-              <SkillBars skills={youPlayer.skills} compact />
+            <div className="well mt-3 rounded-xl p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Current focus</p>
+              <p className="mt-1 text-sm text-text">{youPlayer.currentFocus}</p>
+              <p className="mt-2 text-xs text-sand">Goal handicap: {settings.goalHandicap}</p>
+            </div>
+
+            <div className="well mt-3 rounded-xl p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">
+                {settings.preferredName} edge map
+              </p>
+              <ul className="mt-2 space-y-1 text-sm">
+                {yourSkillEdges.slice(0, 2).map((edge) => (
+                  <li key={edge.category} className={edge.delta >= 0 ? "text-turf" : "text-danger"}>
+                    {formatDelta(edge.delta)} in {edge.label}
+                  </li>
+                ))}
+                {yourSkillEdges[yourSkillEdges.length - 1] ? (
+                  <li className="text-sand">
+                    Focus today: {yourSkillEdges[yourSkillEdges.length - 1].label} (
+                    {formatDelta(yourSkillEdges[yourSkillEdges.length - 1].delta)} vs field)
+                  </li>
+                ) : null}
+              </ul>
             </div>
           </Card>
 
@@ -843,7 +1017,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               {[youPlayer, ...opponents].map((player) => (
                 <div
                   key={player.id}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2"
+                  className="well flex items-center justify-between rounded-xl px-3 py-2.5"
                 >
                   <div>
                     <p className="text-sm font-medium text-text">
@@ -858,25 +1032,6 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                 </div>
               ))}
             </div>
-            <div className="mt-3 rounded-xl border border-white/10 bg-black/25 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted">{settings.preferredName} edge map</p>
-              <ul className="mt-2 space-y-1 text-sm">
-                {yourSkillEdges.slice(0, 2).map((edge) => (
-                  <li
-                    key={edge.category}
-                    className={edge.delta >= 0 ? "text-green-300" : "text-danger"}
-                  >
-                    {formatDelta(edge.delta)} in {edge.label}
-                  </li>
-                ))}
-                {yourSkillEdges[yourSkillEdges.length - 1] ? (
-                  <li className="text-sand">
-                    Focus today: {yourSkillEdges[yourSkillEdges.length - 1].label} (
-                    {formatDelta(yourSkillEdges[yourSkillEdges.length - 1].delta)} vs field)
-                  </li>
-                ) : null}
-              </ul>
-            </div>
           </Card>
 
           <div className="space-y-3">
@@ -884,12 +1039,12 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
             {opponents.map((player, idx) => (
               <details
                 key={player.id}
-                className="field-card-enter group rounded-2xl border border-white/10 bg-card p-4 shadow-soft [&_summary::-webkit-details-marker]:hidden"
+                className="field-card-enter card-surface group rounded-2xl p-4 [&_summary::-webkit-details-marker]:hidden"
                 style={{ animationDelay: `${(idx + 1) * 45}ms` }}
               >
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-lg font-semibold text-white">
+                    <h3 className="font-display text-lg font-semibold text-white">
                       {player.name} <span className="text-sand">({player.nickname})</span>
                     </h3>
                     <p className="text-xs text-muted">
@@ -904,8 +1059,8 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                 </summary>
 
                 <div className="mt-3 space-y-3">
-                  <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                    <p className="text-xs uppercase tracking-wide text-muted">Profile snapshot</p>
+                  <div className="well rounded-xl p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Profile snapshot</p>
                     <p className="mt-1 text-sm text-text">{player.bio}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
                       {player.location ? <span>Location: {player.location}</span> : null}
@@ -925,16 +1080,16 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                      <p className="text-xs uppercase tracking-wide text-muted">Strengths</p>
-                      <ul className="mt-2 space-y-1 text-green-300">
+                    <div className="well rounded-xl p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Strengths</p>
+                      <ul className="mt-2 space-y-1 text-turf">
                         {player.strengths.map((item) => (
                           <li key={item}>- {item}</li>
                         ))}
                       </ul>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                      <p className="text-xs uppercase tracking-wide text-muted">Weaknesses</p>
+                    <div className="well rounded-xl p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Weaknesses</p>
                       <ul className="mt-2 space-y-1 text-sand">
                         {player.weaknesses.map((item) => (
                           <li key={item}>- {item}</li>
@@ -943,20 +1098,20 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                    <p className="text-xs uppercase tracking-wide text-muted">Skill profile</p>
+                  <div className="well rounded-xl p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Skill profile</p>
                     <div className="mt-2">
                       <SkillBars skills={player.skills} />
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                    <p className="text-xs uppercase tracking-wide text-muted">Notes</p>
+                  <div className="well rounded-xl p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Notes</p>
                     <p className="mt-1 text-sm text-text">{player.notes}</p>
                   </div>
 
-                  <div className="rounded-xl border border-sand/30 bg-sand/5 p-3">
-                    <p className="text-xs uppercase tracking-wide text-sand">Matchup insight</p>
+                  <div className="rounded-xl border border-sand/30 bg-sand/[0.06] p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sand">Matchup insight</p>
                     <p className="mt-1 text-sm text-text">{player.matchupInsight}</p>
                   </div>
                 </div>
@@ -968,6 +1123,16 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
 
       {activeTab === "tournament" ? (
         <div className="space-y-4">
+          <Card hero className="rise-in">
+            <Eyebrow>{settings.tournamentName}</Eyebrow>
+            <h2 className="mt-2 font-display text-2xl font-semibold leading-snug">{settings.course}</h2>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Pill tone="sand">{formatDate(settings.tournamentDate)}</Pill>
+              <Pill tone="default">Tee time {settings.teeTime}</Pill>
+              <Pill tone="green">Goal {settings.goalScore}</Pill>
+            </div>
+          </Card>
+
           <Card>
             <SectionTitle title="Tournament week schedule" subtitle="Daily-critical during tournament week." />
             <Checklist
@@ -981,23 +1146,29 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
 
           <Card>
             <SectionTitle title="40-minute warm-up" subtitle="Arrive sharp, not tired." />
-            <Checklist
-              items={WARMUP_40}
-              checkedMap={dailyChecklist.completed}
-              onToggle={toggleChecklist}
-              prefix="warmup"
-              label="Warm-up"
-            />
+            <WarmupTimeline />
+            <div className="mt-4">
+              <Checklist
+                items={WARMUP_40}
+                checkedMap={dailyChecklist.completed}
+                onToggle={toggleChecklist}
+                prefix="warmup"
+                label="Warm-up"
+              />
+            </div>
           </Card>
 
           <CollapsibleCard title="Emergency swing fixes" subtitle="Use one cue per swing.">
             <div className="space-y-3">
               {Object.entries(EMERGENCY_FIXES).map(([miss, fixes]) => (
-                <div key={miss} className="rounded-xl border border-white/10 bg-black/20 p-3">
-                  <p className="text-xs uppercase tracking-wide text-sand">{miss}</p>
-                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
+                <div key={miss} className="well rounded-xl p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sand">{miss}</p>
+                  <ul className="mt-2 space-y-1.5 text-sm text-text">
                     {fixes.map((fix) => (
-                      <li key={fix}>{fix}</li>
+                      <li key={fix} className="flex gap-2">
+                        <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-sand/70" />
+                        {fix}
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -1103,17 +1274,71 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
           </CollapsibleCard>
 
           <CollapsibleCard title="7-week periodization" subtitle="Trust the process and protect freshness.">
-            <ul className="space-y-1 text-sm text-text">
-              {PERIODIZATION.map((item) => (
-                <li key={item}>- {item}</li>
+            <ol className="space-y-0">
+              {PERIODIZATION.map((item, idx) => (
+                <li key={item} className="relative flex gap-3 pb-4 last:pb-0">
+                  {idx < PERIODIZATION.length - 1 ? (
+                    <span className="absolute left-[7px] top-5 h-full w-px bg-white/10" aria-hidden="true" />
+                  ) : null}
+                  <span className="mt-1 h-[15px] w-[15px] shrink-0 rounded-full border-2 border-sand/60 bg-well" />
+                  <span className="text-sm leading-relaxed text-muted">{item}</span>
+                </li>
               ))}
-            </ul>
+            </ol>
           </CollapsibleCard>
         </div>
       ) : null}
 
       <BottomTabs active={activeTab} />
     </main>
+  );
+}
+
+/* 40-minute warm-up as a proportional timeline strip */
+function WarmupTimeline() {
+  const blocks = [
+    { label: "Body", minutes: 10, color: "#4E90D1" },
+    { label: "Chip/pitch", minutes: 10, color: "#4FA86B" },
+    { label: "Irons", minutes: 10, color: "#BA8A28" },
+    { label: "Driver", minutes: 5, color: "#D95F53" },
+    { label: "Putt", minutes: 5, color: "#77837A" }
+  ];
+  let elapsed = 0;
+  return (
+    <div>
+      <div className="flex h-9 w-full gap-[2px] overflow-hidden rounded-xl">
+        {blocks.map((block) => (
+          <div
+            key={block.label}
+            className="flex items-center justify-center"
+            style={{ width: `${(block.minutes / 40) * 100}%`, background: block.color, opacity: 0.85 }}
+          >
+            <span className="px-1 text-[9px] font-bold uppercase tracking-wide text-[#08110B]">
+              {block.minutes >= 10 ? block.label : ""}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-1.5 flex justify-between text-[9px] text-faint">
+        {blocks.map((block) => {
+          const start = elapsed;
+          elapsed += block.minutes;
+          return (
+            <span key={block.label} style={{ width: `${(block.minutes / 40) * 100}%` }}>
+              {start}&apos;
+            </span>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted">
+        {blocks.map((block) => (
+          <span key={block.label} className="inline-flex items-center gap-1">
+            <span className="h-2 w-2 rounded-[3px]" style={{ background: block.color }} />
+            {block.label} {block.minutes}&apos;
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1140,9 +1365,9 @@ function SkillBars({
             <span className="text-muted">{SKILL_LABELS[category]}</span>
             <span className="font-medium text-text">{skills[category]}</span>
           </div>
-          <div className="h-1.5 rounded-full bg-black/35">
+          <div className="h-1.5 rounded-full bg-white/[0.08]">
             <div
-              className="h-1.5 rounded-full bg-gradient-to-r from-sand to-turf transition-all duration-300"
+              className="h-1.5 rounded-full bg-gradient-to-r from-sand-deep to-turf transition-all duration-300"
               style={{ width: `${Math.max(3, Math.min(100, skills[category]))}%` }}
             />
           </div>
@@ -1166,22 +1391,16 @@ function formatDelta(value: number) {
   return `${value}`;
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-      <p className="text-xs text-muted">{label}</p>
-      <p className="text-lg font-semibold text-text">{value}</p>
-    </div>
-  );
-}
-
 function MiniCard({ title, lines }: { title: string; lines: string[] }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-      <p className="text-xs uppercase tracking-wide text-sand">{title}</p>
-      <ul className="mt-1 space-y-1 text-xs text-text">
+    <div className="well rounded-xl p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sand">{title}</p>
+      <ul className="mt-2 space-y-1 text-xs text-text">
         {lines.map((line) => (
-          <li key={line}>- {line}</li>
+          <li key={line} className="flex gap-1.5">
+            <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-sand/60" />
+            {line}
+          </li>
         ))}
       </ul>
     </div>

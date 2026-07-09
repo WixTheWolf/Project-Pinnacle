@@ -9,14 +9,16 @@ import { BarChart3, CalendarCheck2, Check, ChevronDown, Dumbbell, HeartPulse, Ho
 export function Card({
   children,
   className,
+  hero = false,
   ...props
 }: {
   children: ReactNode;
   className?: string;
+  hero?: boolean;
 } & React.ComponentPropsWithoutRef<"section">) {
   return (
     <section
-      className={clsx("rounded-2xl border border-white/10 bg-card p-4 shadow-soft", className)}
+      className={clsx("rounded-2xl p-4", hero ? "card-hero" : "card-surface", className)}
       {...props}
     >
       {children}
@@ -24,17 +26,28 @@ export function Card({
   );
 }
 
+export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <p className={clsx("text-[10px] font-semibold uppercase tracking-[0.22em] text-sand", className)}>
+      {children}
+    </p>
+  );
+}
+
 export function SectionTitle({
   title,
-  subtitle
+  subtitle,
+  eyebrow
 }: {
   title: string;
   subtitle?: string;
+  eyebrow?: string;
 }) {
   return (
     <div className="mb-3">
-      <h2 className="text-lg font-semibold text-text">{title}</h2>
-      {subtitle ? <p className="mt-1 text-xs text-muted">{subtitle}</p> : null}
+      {eyebrow ? <Eyebrow className="mb-1">{eyebrow}</Eyebrow> : null}
+      <h2 className="font-display text-lg font-semibold tracking-tight text-text">{title}</h2>
+      {subtitle ? <p className="mt-1 text-xs leading-relaxed text-muted">{subtitle}</p> : null}
     </div>
   );
 }
@@ -50,10 +63,10 @@ export function Pill({
     <span
       className={clsx(
         "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide",
-        tone === "default" && "border-white/20 text-muted",
-        tone === "sand" && "border-sand/60 bg-sand/10 text-sand",
-        tone === "green" && "border-turf/60 bg-turf/10 text-green-300",
-        tone === "danger" && "border-danger/60 bg-danger/10 text-red-300"
+        tone === "default" && "border-white/15 bg-white/[0.04] text-muted",
+        tone === "sand" && "border-sand/50 bg-sand/10 text-sand",
+        tone === "green" && "border-turf/55 bg-turf/10 text-turf",
+        tone === "danger" && "border-danger/55 bg-danger/10 text-danger"
       )}
     >
       {children}
@@ -63,22 +76,52 @@ export function Pill({
 
 export function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="h-2 w-full rounded-full bg-black/40">
+    <div className="h-2 w-full rounded-full bg-white/[0.09]">
       <div
-        className="h-2 rounded-full bg-gradient-to-r from-sand to-turf transition-all"
+        className="h-2 rounded-full bg-gradient-to-r from-sand-deep to-turf shadow-glow-sand transition-all duration-500"
         style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
       />
     </div>
   );
 }
 
+export function StatCard({
+  label,
+  value,
+  sub,
+  tone = "default"
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "default" | "sand" | "green" | "danger";
+}) {
+  return (
+    <div className="well rounded-xl p-3">
+      <p className="text-[11px] text-muted">{label}</p>
+      <p
+        className={clsx(
+          "mt-1 text-xl font-semibold leading-none",
+          tone === "default" && "text-text",
+          tone === "sand" && "text-sand",
+          tone === "green" && "text-turf",
+          tone === "danger" && "text-danger"
+        )}
+      >
+        {value}
+      </p>
+      {sub ? <p className="mt-1.5 text-[10px] text-faint">{sub}</p> : null}
+    </div>
+  );
+}
+
 const tabs: { key: TabKey; label: string; icon: ReactNode }[] = [
-  { key: "today", label: "Today", icon: <House size={16} /> },
-  { key: "practice", label: "Practice", icon: <Dumbbell size={16} /> },
-  { key: "recovery", label: "Recovery", icon: <HeartPulse size={16} /> },
-  { key: "performance", label: "Performance", icon: <BarChart3 size={16} /> },
-  { key: "field", label: "Field", icon: <Users2 size={16} /> },
-  { key: "tournament", label: "Tournament", icon: <CalendarCheck2 size={16} /> }
+  { key: "today", label: "Today", icon: <House size={17} strokeWidth={2.2} /> },
+  { key: "practice", label: "Practice", icon: <Dumbbell size={17} strokeWidth={2.2} /> },
+  { key: "recovery", label: "Recovery", icon: <HeartPulse size={17} strokeWidth={2.2} /> },
+  { key: "performance", label: "Stats", icon: <BarChart3 size={17} strokeWidth={2.2} /> },
+  { key: "field", label: "Field", icon: <Users2 size={17} strokeWidth={2.2} /> },
+  { key: "tournament", label: "Event", icon: <CalendarCheck2 size={17} strokeWidth={2.2} /> }
 ];
 
 const tabHref: Record<TabKey, string> = {
@@ -92,25 +135,35 @@ const tabHref: Record<TabKey, string> = {
 
 export function BottomTabs({ active }: { active: TabKey }) {
   return (
-    <nav aria-label="Primary navigation" className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#111827]/95 backdrop-blur">
-      <ul className="mx-auto grid max-w-md grid-cols-6">
-        {tabs.map((tab) => (
-          <li key={tab.key}>
-            <Link
-              href={tabHref[tab.key]}
-              aria-current={active === tab.key ? "page" : undefined}
-              className={clsx(
-                "flex w-full flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition",
-                active === tab.key
-                  ? "border-t-2 border-sand bg-white/10 font-semibold text-white"
-                  : "border-t-2 border-transparent text-slate-400 hover:bg-white/5 hover:text-slate-100"
-              )}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </Link>
-          </li>
-        ))}
+    <nav
+      aria-label="Primary navigation"
+      className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),0.625rem)]"
+    >
+      <ul className="mx-auto grid max-w-md grid-cols-6 items-stretch rounded-2xl border border-white/10 bg-[#0B110D]/92 p-1.5 shadow-dock backdrop-blur-xl">
+        {tabs.map((tab) => {
+          const isActive = active === tab.key;
+          return (
+            <li key={tab.key}>
+              <Link
+                href={tabHref[tab.key]}
+                aria-current={isActive ? "page" : undefined}
+                className={clsx(
+                  "flex w-full flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-[10px] font-medium transition",
+                  isActive
+                    ? "bg-sand/[0.12] font-semibold text-sand"
+                    : "text-faint hover:bg-white/[0.05] hover:text-muted"
+                )}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+                <span
+                  aria-hidden="true"
+                  className={clsx("h-1 w-1 rounded-full", isActive ? "bg-sand" : "bg-transparent")}
+                />
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );
@@ -134,9 +187,16 @@ export function Checklist({
   return (
     <div className="space-y-2.5">
       {label ? (
-        <p className="text-xs font-medium uppercase tracking-wide text-muted">
-          {label}: {completed} / {items.length} complete
-        </p>
+        <div>
+          <div className="mb-1.5 flex items-baseline justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">{label}</p>
+            <p className="text-[11px] font-semibold text-sand">
+              {completed}
+              <span className="text-faint"> / {items.length}</span>
+            </p>
+          </div>
+          <ProgressBar value={(completed / items.length) * 100} />
+        </div>
       ) : null}
       {items.map((item, idx) => {
         const key = `${prefix}-${idx}`;
@@ -152,19 +212,19 @@ export function Checklist({
             className={clsx(
               "flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm transition",
               checked
-                ? "border-turf/70 bg-turf/10 text-green-100 shadow-[0_0_0_1px_rgba(46,125,50,0.2)]"
-                : "border-white/10 bg-black/15 text-text hover:border-white/20"
+                ? "border-turf/50 bg-turf/[0.08] text-muted"
+                : "well text-text hover:border-white/20"
             )}
           >
             <span
               className={clsx(
-                "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition",
-                checked ? "border-turf bg-turf text-black" : "border-white/30"
+                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition",
+                checked ? "border-turf bg-turf text-[#08110B]" : "border-white/25"
               )}
             >
-              {checked ? <Check size={12} /> : null}
+              {checked ? <Check size={12} strokeWidth={3} /> : null}
             </span>
-            <span>{item}</span>
+            <span className={clsx(checked && "line-through decoration-turf/40 decoration-1")}>{item}</span>
           </button>
         );
       })}
@@ -189,19 +249,18 @@ export function CollapsibleCard({
     <details
       open={isOpen}
       onToggle={(event) => setIsOpen(event.currentTarget.open)}
-      className="group rounded-2xl border border-white/10 bg-card p-4 shadow-soft [&_summary::-webkit-details-marker]:hidden"
+      className="card-surface group rounded-2xl p-4 [&_summary::-webkit-details-marker]:hidden"
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-text">{title}</h3>
+          <h3 className="font-display text-base font-semibold tracking-tight text-text">{title}</h3>
           {subtitle ? <p className="mt-1 text-xs text-muted">{subtitle}</p> : null}
         </div>
-        <ChevronDown
-          size={16}
-          className="shrink-0 text-muted transition group-open:rotate-180 group-open:text-sand"
-        />
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04]">
+          <ChevronDown size={14} className="text-muted transition group-open:rotate-180 group-open:text-sand" />
+        </span>
       </summary>
-      <div className="mt-3">{children}</div>
+      <div className="mt-4">{children}</div>
     </details>
   );
 }
