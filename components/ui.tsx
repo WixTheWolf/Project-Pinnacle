@@ -3,8 +3,19 @@
 import clsx from "clsx";
 import { ReactNode, useState } from "react";
 import Link from "next/link";
-import { TabKey } from "@/lib/types";
-import { BarChart3, CalendarCheck2, Check, ChevronDown, Dumbbell, HeartPulse, House, Users2 } from "lucide-react";
+import { CoachingGuide, TabKey } from "@/lib/types";
+import {
+  BarChart3,
+  CalendarCheck2,
+  Check,
+  ChevronDown,
+  CircleHelp,
+  Dumbbell,
+  HeartPulse,
+  House,
+  Play,
+  Users2
+} from "lucide-react";
 
 export function Card({
   children,
@@ -174,15 +185,18 @@ export function Checklist({
   checkedMap,
   onToggle,
   prefix,
-  label
+  label,
+  guides
 }: {
   items: string[];
   checkedMap: Record<string, boolean>;
   onToggle: (key: string) => void;
   prefix: string;
   label?: string;
+  guides?: Record<string, CoachingGuide>;
 }) {
   const completed = items.reduce((count, _, idx) => (checkedMap[`${prefix}-${idx}`] ? count + 1 : count), 0);
+  const [openGuides, setOpenGuides] = useState<Record<string, boolean>>({});
 
   return (
     <div className="space-y-2.5">
@@ -201,31 +215,81 @@ export function Checklist({
       {items.map((item, idx) => {
         const key = `${prefix}-${idx}`;
         const checked = !!checkedMap[key];
+        const guide = guides?.[item];
+        const guideOpen = !!openGuides[key];
         return (
-          <button
+          <div
             key={key}
-            type="button"
-            onClick={() => onToggle(key)}
-            role="checkbox"
-            aria-checked={checked}
-            aria-label={`${checked ? "Mark incomplete" : "Mark complete"}: ${item}`}
             className={clsx(
-              "flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm transition",
-              checked
-                ? "border-turf/50 bg-turf/[0.08] text-muted"
-                : "well text-text hover:border-white/20"
+              "rounded-xl border transition",
+              checked ? "border-turf/50 bg-turf/[0.08]" : "well hover:border-white/20"
             )}
           >
-            <span
-              className={clsx(
-                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition",
-                checked ? "border-turf bg-turf text-[#08110B]" : "border-white/25"
-              )}
-            >
-              {checked ? <Check size={12} strokeWidth={3} /> : null}
-            </span>
-            <span className={clsx(checked && "line-through decoration-turf/40 decoration-1")}>{item}</span>
-          </button>
+            <div className="flex items-center gap-3 p-3">
+              <button
+                type="button"
+                onClick={() => onToggle(key)}
+                role="checkbox"
+                aria-checked={checked}
+                aria-label={`${checked ? "Mark incomplete" : "Mark complete"}: ${item}`}
+                className="flex min-w-0 flex-1 items-center gap-3 text-left text-sm"
+              >
+                <span
+                  className={clsx(
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition",
+                    checked ? "border-turf bg-turf text-[#08110B]" : "border-white/25"
+                  )}
+                >
+                  {checked ? <Check size={12} strokeWidth={3} /> : null}
+                </span>
+                <span
+                  className={clsx(
+                    checked ? "text-muted line-through decoration-turf/40 decoration-1" : "text-text"
+                  )}
+                >
+                  {item}
+                </span>
+              </button>
+              {guide ? (
+                <button
+                  type="button"
+                  onClick={() => setOpenGuides((prev) => ({ ...prev, [key]: !prev[key] }))}
+                  aria-expanded={guideOpen}
+                  aria-label={`How to: ${item}`}
+                  className={clsx(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition",
+                    guideOpen
+                      ? "border-sand/60 bg-sand/15 text-sand"
+                      : "border-white/10 bg-white/[0.04] text-faint hover:text-muted"
+                  )}
+                >
+                  <CircleHelp size={14} />
+                </button>
+              ) : null}
+            </div>
+            {guide && guideOpen ? (
+              <div className="space-y-2 border-t border-white/[0.06] px-3 pb-3 pt-2.5 text-xs">
+                <p className="leading-relaxed text-text">{guide.tutorial}</p>
+                <p className="leading-relaxed text-muted">
+                  <span className="font-semibold text-sand">Tip · </span>
+                  {guide.tip}
+                </p>
+                <p className="leading-relaxed text-muted">
+                  <span className="font-semibold text-turf">Trick · </span>
+                  {guide.trick}
+                </p>
+                <a
+                  href={guide.videoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-sand/50 bg-sand/10 px-3 py-1.5 font-semibold text-sand transition hover:bg-sand/20"
+                >
+                  <Play size={11} />
+                  Watch how-to videos
+                </a>
+              </div>
+            ) : null}
+          </div>
         );
       })}
     </div>

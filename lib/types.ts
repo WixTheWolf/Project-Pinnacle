@@ -81,4 +81,15 @@ export interface Drill {
   reps: string;
   metric: string;
   instructions: string[];
+  tutorial: string;
+  tips: string[];
+  tricks: string[];
+  videoUrl: string;
+}
+
+export interface CoachingGuide {
+  tutorial: string;
+  tip: string;
+  trick: string;
+  videoUrl: string;
 }

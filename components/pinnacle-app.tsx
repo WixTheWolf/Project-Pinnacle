@@ -25,6 +25,7 @@ import {
   STRAND_BRAND_ASSETS,
   SkillCategory
 } from "@/lib/field-data";
+import { CHECKLIST_GUIDES } from "@/lib/coaching-guides";
 import { ChecklistState, PracticeLog, ReadinessEntry, RoundLog, Settings, TabKey } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import {
@@ -46,7 +47,7 @@ import {
   TargetMeter
 } from "@/components/charts";
 import { DrillDiagram } from "@/components/drill-diagrams";
-import { ChevronDown, Clock3, Flame, Gauge, Play, Target } from "lucide-react";
+import { ChevronDown, Clock3, Flame, Gauge, Play, Quote, Target } from "lucide-react";
 
 const READINESS_KEYS = [
   "sleep",
@@ -319,6 +320,11 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
   const todayName = new Date().toLocaleDateString(undefined, { weekday: "long" });
   const todayPlan = settings.weeklySchedule[todayName] ?? WEEKLY_TEMPLATE[todayName]?.join(" + ") ?? "Recovery + review";
   const estimatedMinutes = estimateDurationMinutes(todayPlan);
+  const swingKeyDate = new Date();
+  const dayOfYear = Math.floor(
+    (swingKeyDate.getTime() - new Date(swingKeyDate.getFullYear(), 0, 0).getTime()) / 86400000
+  );
+  const swingKeyOfTheDay = SWING_KEYS[dayOfYear % SWING_KEYS.length];
 
   const mobilityStreak = useMemo(
     () =>
@@ -352,6 +358,9 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
         acc.penalties += round.penalties;
         acc.doubles += round.doublesOrWorse;
         acc.birdies += round.birdies;
+        acc.threePutts += round.threePutts;
+        acc.upDownMade += round.upAndDownMade;
+        acc.upDownAttempted += round.upAndDownAttempted;
         acc.soreness += round.soreness;
         acc.best = Math.min(acc.best, round.score);
         return acc;
@@ -364,6 +373,9 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
         penalties: 0,
         doubles: 0,
         birdies: 0,
+        threePutts: 0,
+        upDownMade: 0,
+        upDownAttempted: 0,
         soreness: 0,
         best: Number.POSITIVE_INFINITY
       }
@@ -380,6 +392,8 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
       avgPenalties: sum.penalties / n,
       avgDoubles: sum.doubles / n,
       avgBirdies: sum.birdies / n,
+      avgThreePutts: (sum.threePutts / n).toFixed(1),
+      scramblingPct: sum.upDownAttempted > 0 ? (sum.upDownMade / sum.upDownAttempted) * 100 : 0,
       avgSoreness: (sum.soreness / n).toFixed(1),
       bestRound: sum.best,
       trendScores: chronological.map((round) => round.score),
@@ -510,6 +524,15 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               {readinessState.guidance} This keeps your body durable and your scoring clubs sharp for tournament week.
             </p>
             <p className="mt-2 text-xs text-sand">{readinessState.adjustment}</p>
+            <div className="well mt-3 flex items-start gap-2.5 rounded-xl p-3">
+              <Quote size={13} className="mt-0.5 shrink-0 text-sand/70" />
+              <div>
+                <p className="font-display text-sm font-semibold italic text-text">{swingKeyOfTheDay}</p>
+                <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">
+                  Swing key of the day
+                </p>
+              </div>
+            </div>
             <button type="button" className={`${buttonClass} mt-4 w-full`} onClick={startTodaysPlan}>
               <Play size={15} className="mr-2 inline-block" />
               Start Today&apos;s Plan
@@ -598,13 +621,14 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
           </Card>
 
           <Card>
-            <SectionTitle title="Daily mobility" subtitle="Durability first." />
+            <SectionTitle title="Daily mobility" subtitle="Durability first. Tap ? on any item for a how-to." />
             <Checklist
               items={DAILY_MOBILITY}
               checkedMap={dailyChecklist.completed}
               onToggle={toggleChecklist}
               prefix="mobility"
               label="Mobility"
+              guides={CHECKLIST_GUIDES}
             />
           </Card>
 
@@ -616,6 +640,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               onToggle={toggleChecklist}
               prefix="recovery"
               label="Recovery"
+              guides={CHECKLIST_GUIDES}
             />
           </Card>
         </div>
@@ -679,21 +704,54 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                   ))}
                 </ul>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPracticeDraft((prev) => ({
-                      ...prev,
-                      section: drill.section,
-                      drillName: drill.name
-                    }));
-                    document.getElementById("practice-log")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                  className={`${buttonClass} mt-4 w-full`}
-                >
-                  <Target size={14} className="mr-2 inline-block" />
-                  Log Result
-                </button>
+                <details className="well group/notes mt-3 rounded-xl [&_summary::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">
+                    Coach&apos;s notes
+                    <ChevronDown size={13} className="transition group-open/notes:rotate-180" />
+                  </summary>
+                  <div className="space-y-2 px-3 pb-3 text-xs">
+                    <p className="leading-relaxed text-text">{drill.tutorial}</p>
+                    {drill.tips.map((tip) => (
+                      <p key={tip} className="leading-relaxed text-muted">
+                        <span className="font-semibold text-sand">Tip · </span>
+                        {tip}
+                      </p>
+                    ))}
+                    {drill.tricks.map((trick) => (
+                      <p key={trick} className="leading-relaxed text-muted">
+                        <span className="font-semibold text-turf">Trick · </span>
+                        {trick}
+                      </p>
+                    ))}
+                  </div>
+                </details>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <a
+                    href={drill.videoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2.5 text-sm font-semibold text-muted transition hover:border-sand/40 hover:text-sand"
+                  >
+                    <Play size={14} className="mr-2 inline-block" />
+                    How-to videos
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPracticeDraft((prev) => ({
+                        ...prev,
+                        section: drill.section,
+                        drillName: drill.name
+                      }));
+                      document.getElementById("practice-log")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className={buttonClass}
+                  >
+                    <Target size={14} className="mr-2 inline-block" />
+                    Log Result
+                  </button>
+                </div>
               </Card>
             ))}
           </div>
@@ -769,13 +827,17 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
       {activeTab === "recovery" ? (
         <div className="space-y-4">
           <Card>
-            <SectionTitle title="Daily 15-minute mobility" subtitle="Daily-critical. Do this first." />
+            <SectionTitle
+              title="Daily 15-minute mobility"
+              subtitle="Daily-critical. Do this first. Tap ? on any item for a how-to."
+            />
             <Checklist
               items={DAILY_MOBILITY}
               checkedMap={dailyChecklist.completed}
               onToggle={toggleChecklist}
               prefix="mobility"
               label="Mobility"
+              guides={CHECKLIST_GUIDES}
             />
           </Card>
 
@@ -787,6 +849,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                 onToggle={toggleChecklist}
                 prefix={name.toLowerCase().replace(/[^a-z]/g, "")}
                 label={name}
+                guides={CHECKLIST_GUIDES}
               />
             </CollapsibleCard>
           ))}
@@ -798,6 +861,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               onToggle={toggleChecklist}
               prefix="strengtha"
               label="Strength A"
+              guides={CHECKLIST_GUIDES}
             />
           </CollapsibleCard>
 
@@ -808,6 +872,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               onToggle={toggleChecklist}
               prefix="strengthb"
               label="Strength B"
+              guides={CHECKLIST_GUIDES}
             />
             <p className="mt-3 text-xs text-muted">
               Deload week: reduce strength volume by 40-50%. Keep speed sharp and leave fresh.
@@ -821,6 +886,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               onToggle={toggleChecklist}
               prefix="recovery"
               label="Recovery"
+              guides={CHECKLIST_GUIDES}
             />
           </CollapsibleCard>
         </div>
@@ -850,9 +916,10 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
             <>
               <Card className="rise-in">
                 <SectionTitle eyebrow="Averages" title="Performance dashboard" />
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <StatCard label="Avg score" value={performanceStats.avgScore} tone="sand" />
                   <StatCard label="Best round" value={String(performanceStats.bestRound)} tone="green" />
+                  <StatCard label="Three-putts" value={performanceStats.avgThreePutts} sub="per round · target 0" />
                   <StatCard label="Soreness" value={performanceStats.avgSoreness} sub="post-round avg" />
                 </div>
               </Card>
@@ -888,6 +955,13 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                     lowerIsBetter
                   />
                   <TargetMeter label="Birdies" value={performanceStats.avgBirdies} target={2} max={6} />
+                  <TargetMeter
+                    label="Scrambling"
+                    value={performanceStats.scramblingPct}
+                    target={40}
+                    max={100}
+                    format={(v) => `${v.toFixed(0)}%`}
+                  />
                 </div>
               </Card>
             </>
