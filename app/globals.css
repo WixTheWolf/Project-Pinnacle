@@ -25,7 +25,7 @@
   --color-danger: #d95f53;
 
   /* Type */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
 
   /* Elevation */
@@ -124,10 +124,51 @@ body {
     linear-gradient(145deg, rgba(13, 18, 14, 0.95), rgba(10, 15, 11, 0.95));
 }
 
+.countdown-hero {
+  min-height: 22rem;
+}
+
+@keyframes countdown-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -40% 0;
+  }
+}
+
+.countdown-shimmer {
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(226, 193, 120, 0.08) 48%,
+    transparent 62%
+  );
+  background-size: 220% 100%;
+  animation: countdown-shimmer 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes soft-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.countdown-ring {
+  animation: soft-float 4.5s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rise-in,
   .field-card-enter,
-  .ring-animate {
+  .ring-animate,
+  .countdown-shimmer,
+  .countdown-ring {
     animation: none !important;
   }
 }

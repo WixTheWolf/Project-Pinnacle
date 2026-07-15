@@ -132,7 +132,7 @@ const tabs: { key: TabKey; label: string; icon: ReactNode }[] = [
   { key: "recovery", label: "Recovery", icon: <HeartPulse size={17} strokeWidth={2.2} /> },
   { key: "performance", label: "Stats", icon: <BarChart3 size={17} strokeWidth={2.2} /> },
   { key: "field", label: "Field", icon: <Users2 size={17} strokeWidth={2.2} /> },
-  { key: "tournament", label: "Event", icon: <CalendarCheck2 size={17} strokeWidth={2.2} /> }
+  { key: "tournament", label: "Tournament", icon: <CalendarCheck2 size={17} strokeWidth={2.2} /> }
 ];
 
 const tabHref: Record<TabKey, string> = {

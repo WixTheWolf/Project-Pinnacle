@@ -47,7 +47,8 @@ import {
   TargetMeter
 } from "@/components/charts";
 import { DrillDiagram } from "@/components/drill-diagrams";
-import { ChevronDown, Clock3, Flame, Gauge, Play, Quote, Target } from "lucide-react";
+import { CountdownHero, DawnCommandBanner, LinksHorizon, PinMark } from "@/components/course-art";
+import { ChevronDown, Clock3, Flame, Play, Quote, Target } from "lucide-react";
 
 const READINESS_KEYS = [
   "sleep",
@@ -489,7 +490,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
 
   return (
     <main className="mx-auto min-h-screen max-w-md px-4 pb-28 pt-6 text-text">
-      <header className="mb-6">
+      <header className="mb-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <Eyebrow>Road to Gamble Sands</Eyebrow>
@@ -498,29 +499,31 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
             </h1>
             <p className="mt-2 text-sm text-muted">Do today&apos;s work, {settings.preferredName}.</p>
           </div>
-          <div className="well flex shrink-0 flex-col items-center rounded-2xl px-3.5 py-2.5">
+          <div className="well relative flex shrink-0 flex-col items-center overflow-hidden rounded-2xl px-3.5 py-2.5">
+            <PinMark className="absolute -right-1 -top-1 text-sand/30" />
             <span className="font-display text-2xl font-semibold leading-none text-sand">{countdown}</span>
             <span className="mt-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-faint">days out</span>
           </div>
+        </div>
+        <div className="mt-4 overflow-hidden rounded-xl opacity-80">
+          <LinksHorizon />
         </div>
       </header>
 
       {activeTab === "today" ? (
         <div className="space-y-4">
+          <div className="rise-in">
+            <DawnCommandBanner
+              plan={todayPlan}
+              minutes={estimatedMinutes}
+              intensityLabel={readinessState.label}
+              intensityTone={readinessState.tone}
+              onStart={startTodaysPlan}
+            />
+          </div>
+
           <Card hero className="rise-in">
-            <Eyebrow>Daily Command</Eyebrow>
-            <h2 className="mt-2 font-display text-2xl font-semibold leading-snug text-text">{todayPlan}</h2>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Pill tone="default">
-                <Clock3 size={12} className="mr-1 inline-block" />
-                {estimatedMinutes} min
-              </Pill>
-              <Pill tone={readinessState.tone}>
-                <Gauge size={12} className="mr-1 inline-block" />
-                {readinessState.label}
-              </Pill>
-            </div>
-            <p className="mt-3 text-sm leading-relaxed text-muted">
+            <p className="text-sm leading-relaxed text-muted">
               {readinessState.guidance} This keeps your body durable and your scoring clubs sharp for tournament week.
             </p>
             <p className="mt-2 text-xs text-sand">{readinessState.adjustment}</p>
@@ -533,10 +536,6 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                 </p>
               </div>
             </div>
-            <button type="button" className={`${buttonClass} mt-4 w-full`} onClick={startTodaysPlan}>
-              <Play size={15} className="mr-2 inline-block" />
-              Start Today&apos;s Plan
-            </button>
           </Card>
 
           <Card className="rise-in">
@@ -1197,13 +1196,33 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
 
       {activeTab === "tournament" ? (
         <div className="space-y-4">
-          <Card hero className="rise-in">
-            <Eyebrow>{settings.tournamentName}</Eyebrow>
-            <h2 className="mt-2 font-display text-2xl font-semibold leading-snug">{settings.course}</h2>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Pill tone="sand">{formatDate(settings.tournamentDate)}</Pill>
-              <Pill tone="default">Tee time {settings.teeTime}</Pill>
-              <Pill tone="green">Goal {settings.goalScore}</Pill>
+          <div className="rise-in">
+            <CountdownHero
+              days={countdown}
+              phase={currentPhase}
+              tournamentName={settings.tournamentName}
+              course={settings.course}
+              dateLabel={formatDate(settings.tournamentDate)}
+              teeTime={settings.teeTime}
+              goalScore={settings.goalScore}
+              progress={progressToTournament}
+            />
+          </div>
+
+          <Card className="rise-in">
+            <SectionTitle
+              eyebrow="Road map"
+              title="Why every day counts"
+              subtitle="Handicap 12.4 → 3. Score window 79–84 at Gamble Sands."
+            />
+            <div className="grid grid-cols-3 gap-2">
+              <StatCard label="Days out" value={String(countdown)} tone="sand" />
+              <StatCard label="Goal score" value={settings.goalScore} tone="default" />
+              <StatCard label="Progress" value={`${progressToTournament}%`} tone="green" />
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <p className="text-xs text-muted">Current training phase</p>
+              <Pill tone="sand">{currentPhase}</Pill>
             </div>
           </Card>
 
