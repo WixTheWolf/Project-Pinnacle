@@ -505,9 +505,11 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
             <span className="mt-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-faint">days out</span>
           </div>
         </div>
-        <div className="mt-4 overflow-hidden rounded-xl opacity-80">
-          <LinksHorizon />
-        </div>
+        {activeTab !== "tournament" ? (
+          <div className="mt-4 overflow-hidden rounded-xl opacity-80">
+            <LinksHorizon />
+          </div>
+        ) : null}
       </header>
 
       {activeTab === "today" ? (
