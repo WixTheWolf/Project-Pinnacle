@@ -71,6 +71,9 @@ export interface RoundLog {
   source?: "ghin" | "manual";
   /* false = score-only import; excluded from per-stat averages */
   hasStats?: boolean;
+  /* USGA course rating from GHIN — used to exclude executive/par-3 courses
+     (rating < 66) from regulation scoring stats */
+  courseRating?: number | null;
 }
 
 export interface ChecklistState {

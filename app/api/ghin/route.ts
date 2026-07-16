@@ -132,8 +132,10 @@ export async function POST(request: Request) {
           courseName: stringOrNull(raw.course_display_value ?? raw.course_name ?? raw.facility_name) ?? "Unknown course",
           teeName: stringOrNull(raw.tee_name ?? raw.tee_set_id) ?? "",
           score: gross,
-          holes: numberOrNull(raw.number_of_holes) ?? 18,
+          holes: numberOrNull(raw.number_of_holes ?? raw.number_of_played_holes) ?? 18,
           differential: numberOrNull(raw.differential ?? raw.adjusted_differential),
+          courseRating: numberOrNull(raw.course_rating),
+          scoreType: stringOrNull(raw.score_type),
           usedInIndex: Boolean(raw.used ?? false),
           stats: {
             putts: numberOrNull(statistics.putts_total ?? statistics.putts),

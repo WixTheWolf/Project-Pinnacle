@@ -26,7 +26,20 @@ import {
   SkillCategory
 } from "@/lib/field-data";
 import { CHECKLIST_GUIDES } from "@/lib/coaching-guides";
-import { GhinSyncResult, ghinScoreToRound, mergeGhinRounds } from "@/lib/ghin";
+import {
+  READINESS_KEYS,
+  ReadinessKey,
+  daysTo,
+  estimateDurationMinutes,
+  formatDate,
+  localDateKey,
+  parseDateKey,
+  phaseForDate,
+  planIntensity,
+  readinessScore,
+  swingKeyForToday
+} from "@/lib/plan";
+import { GhinSyncResult, ghinScoreToRound, isRegulationRound, mergeGhinRounds } from "@/lib/ghin";
 import { enrichRoundWithGrintStats, GRINT_BASELINES, GRINT_RECORDS, GRINT_TREND_URL } from "@/lib/grint-snapshot";
 import { ChecklistState, PracticeLog, ReadinessEntry, RoundLog, Settings, TabKey } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
@@ -51,34 +64,6 @@ import {
 import { DrillDiagram } from "@/components/drill-diagrams";
 import { ChevronDown, Clock3, Flame, Gauge, Link2, Play, Quote, RefreshCw, Target } from "lucide-react";
 
-const READINESS_KEYS = [
-  "sleep",
-  "energy",
-  "back",
-  "hips",
-  "shoulders",
-  "wristsHands",
-  "stress",
-  "confidence"
-] as const;
-
-type ReadinessKey = (typeof READINESS_KEYS)[number];
-
-const localDateKey = (date = new Date()) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const parseDateKey = (value: string) => {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-};
-
-const formatDate = (value: string) =>
-  parseDateKey(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-
 const toId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const textInputClass =
@@ -87,7 +72,7 @@ const buttonClass =
   "rounded-xl border border-sand/50 bg-sand/[0.12] px-4 py-2.5 text-sm font-semibold text-sand transition hover:bg-sand/20 active:scale-[0.99]";
 
 const roundFieldConfig: Array<{
-  key: keyof Omit<RoundLog, "id" | "notes" | "source" | "hasStats">;
+  key: keyof Omit<RoundLog, "id" | "notes" | "source" | "hasStats" | "courseRating">;
   label: string;
   type: "date" | "number" | "text";
 }> = [
@@ -108,70 +93,6 @@ const roundFieldConfig: Array<{
   { key: "mentalGrade", label: "Mental grade (1-10)", type: "number" }
 ];
 
-function readinessScore(draft: Record<ReadinessKey, number>) {
-  const stressAdjusted = 11 - draft.stress;
-  const total =
-    draft.sleep +
-    draft.energy +
-    draft.back +
-    draft.hips +
-    draft.shoulders +
-    draft.wristsHands +
-    stressAdjusted +
-    draft.confidence;
-  return Math.round((total / 80) * 100);
-}
-
-function planIntensity(score: number) {
-  if (score >= 80) {
-    return {
-      label: "Full intensity",
-      tone: "green" as const,
-      guidance: "Run the full plan. Tempo wins, then stack clean reps.",
-      adjustment: "No reductions needed."
-    };
-  }
-  if (score >= 60) {
-    return {
-      label: "Modified intensity",
-      tone: "sand" as const,
-      guidance: "Complete the plan with reduced volume and smooth tempo.",
-      adjustment: "Cut total reps ~20%, keep quality high, no hero swings."
-    };
-  }
-  return {
-    label: "Recovery-priority intensity",
-    tone: "danger" as const,
-    guidance: "Convert today to mobility + short technical work only.",
-    adjustment: "Skip heavy loading, preserve rhythm, and leave fresh."
-  };
-}
-
-function phaseForDate(tournamentDate: string) {
-  const now = new Date();
-  const target = new Date(tournamentDate);
-  const diffDays = Math.ceil((target.getTime() - now.getTime()) / 86400000);
-  if (diffDays <= 7) {
-    return "Tournament Week";
-  }
-  if (diffDays <= 14) {
-    return "Week 7 Deload";
-  }
-  if (diffDays <= 28) {
-    return "Week 5-6 Simulation";
-  }
-  if (diffDays <= 42) {
-    return "Week 3-4 Build";
-  }
-  return "Week 1-2 Foundation";
-}
-
-function daysTo(tournamentDate: string) {
-  const now = new Date();
-  const target = new Date(tournamentDate);
-  return Math.max(0, Math.ceil((target.getTime() - now.getTime()) / 86400000));
-}
-
 function streakFromDates(dates: string[]) {
   const dateSet = new Set(dates);
   let streak = 0;
@@ -185,40 +106,6 @@ function streakFromDates(dates: string[]) {
     cursor.setDate(cursor.getDate() - 1);
   }
   return streak;
-}
-
-function estimateDurationMinutes(plan: string) {
-  let minutes = 0;
-  const lower = plan.toLowerCase();
-  if (lower.includes("strength")) {
-    minutes += 45;
-  }
-  if (lower.includes("range")) {
-    minutes += 60;
-  }
-  if (lower.includes("wedge")) {
-    minutes += 30;
-  }
-  if (lower.includes("putting")) {
-    minutes += 25;
-  }
-  if (lower.includes("short game")) {
-    minutes += 30;
-  }
-  if (lower.includes("walk")) {
-    minutes += 45;
-  }
-  if (lower.includes("play 9")) {
-    minutes += 120;
-  }
-  if (lower.includes("18")) {
-    minutes += 240;
-  }
-  if (lower.includes("recovery")) {
-    minutes += 20;
-  }
-
-  return Math.max(30, minutes);
 }
 
 export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
@@ -332,11 +219,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
   const todayName = new Date().toLocaleDateString(undefined, { weekday: "long" });
   const todayPlan = settings.weeklySchedule[todayName] ?? WEEKLY_TEMPLATE[todayName]?.join(" + ") ?? "Recovery + review";
   const estimatedMinutes = estimateDurationMinutes(todayPlan);
-  const swingKeyDate = new Date();
-  const dayOfYear = Math.floor(
-    (swingKeyDate.getTime() - new Date(swingKeyDate.getFullYear(), 0, 0).getTime()) / 86400000
-  );
-  const swingKeyOfTheDay = SWING_KEYS[dayOfYear % SWING_KEYS.length];
+  const swingKeyOfTheDay = swingKeyForToday(SWING_KEYS);
 
   const mobilityStreak = useMemo(
     () =>
@@ -358,65 +241,42 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
   );
 
   const performanceStats = useMemo(() => {
-    if (roundLogs.length === 0) {
+    /* Regulation rounds only for scoring stats — executive/par-3 courses
+       (e.g. a 73 on a par-60) stay in history but would distort the 79-84
+       trend and averages. */
+    const regulation = roundLogs.filter(isRegulationRound);
+    if (regulation.length === 0) {
       return null;
     }
-    /* Score-only rounds (e.g. GHIN imports without entered statistics) count
-       toward scores/trend but are excluded from per-stat averages. */
-    const withStats = roundLogs.filter((round) => round.hasStats !== false);
-    const sum = roundLogs.reduce(
-      (acc, round) => {
-        acc.score += round.score;
-        acc.best = Math.min(acc.best, round.score);
-        return acc;
-      },
-      { score: 0, best: Number.POSITIVE_INFINITY }
-    );
-    const statSum = withStats.reduce(
-      (acc, round) => {
-        acc.fairways += round.fairwaysHit;
-        acc.gir += round.gir;
-        acc.putts += round.putts;
-        acc.penalties += round.penalties;
-        acc.doubles += round.doublesOrWorse;
-        acc.birdies += round.birdies;
-        acc.threePutts += round.threePutts;
-        acc.upDownMade += round.upAndDownMade;
-        acc.upDownAttempted += round.upAndDownAttempted;
-        acc.soreness += round.soreness;
-        return acc;
-      },
-      {
-        fairways: 0,
-        gir: 0,
-        putts: 0,
-        penalties: 0,
-        doubles: 0,
-        birdies: 0,
-        threePutts: 0,
-        upDownMade: 0,
-        upDownAttempted: 0,
-        soreness: 0
-      }
-    );
-    const n = roundLogs.length;
-    const nStats = Math.max(withStats.length, 1);
-    const chronological = [...roundLogs].sort(
+    const mean = (values: number[]) =>
+      values.length > 0 ? values.reduce((total, v) => total + v, 0) / values.length : null;
+    /* Each stat averages only over rounds that actually carry it: GHIN
+       imports zero-fill stats GHIN never tracked, and treating those zeros
+       as data drags every average toward zero. Detail stats (penalties,
+       birdies, three-putts, soreness) only exist on manually logged rounds. */
+    const puttsAvg = mean(regulation.filter((r) => r.putts > 0).map((r) => r.putts));
+    const fairwaysAvg = mean(regulation.filter((r) => r.fairwaysHit > 0).map((r) => r.fairwaysHit));
+    const girAvg = mean(regulation.filter((r) => r.gir > 0).map((r) => r.gir));
+    const detail = regulation.filter((r) => r.source !== "ghin" && r.hasStats !== false);
+    const scrambleRounds = regulation.filter((r) => r.upAndDownAttempted > 0);
+    const scrambleMade = scrambleRounds.reduce((total, r) => total + r.upAndDownMade, 0);
+    const scrambleAttempted = scrambleRounds.reduce((total, r) => total + r.upAndDownAttempted, 0);
+    const chronological = [...regulation].sort(
       (a, b) => parseDateKey(a.date).getTime() - parseDateKey(b.date).getTime()
     );
     return {
-      avgScore: (sum.score / n).toFixed(1),
-      hasStatRounds: withStats.length > 0,
-      avgFairways: statSum.fairways / nStats,
-      avgGir: statSum.gir / nStats,
-      avgPutts: statSum.putts / nStats,
-      avgPenalties: statSum.penalties / nStats,
-      avgDoubles: statSum.doubles / nStats,
-      avgBirdies: statSum.birdies / nStats,
-      avgThreePutts: (statSum.threePutts / nStats).toFixed(1),
-      scramblingPct: statSum.upDownAttempted > 0 ? (statSum.upDownMade / statSum.upDownAttempted) * 100 : 0,
-      avgSoreness: (statSum.soreness / nStats).toFixed(1),
-      bestRound: sum.best,
+      rounds: regulation.length,
+      avgScore: (regulation.reduce((total, r) => total + r.score, 0) / regulation.length).toFixed(1),
+      bestRound: Math.min(...regulation.map((r) => r.score)),
+      avgPutts: puttsAvg,
+      avgFairways: fairwaysAvg,
+      avgGir: girAvg,
+      avgPenalties: mean(detail.map((r) => r.penalties)),
+      avgDoubles: mean(detail.map((r) => r.doublesOrWorse)),
+      avgBirdies: mean(detail.map((r) => r.birdies)),
+      avgThreePutts: mean(detail.map((r) => r.threePutts)),
+      avgSoreness: mean(detail.filter((r) => r.soreness > 0).map((r) => r.soreness)),
+      scramblingPct: scrambleAttempted > 0 ? (scrambleMade / scrambleAttempted) * 100 : null,
       trendScores: chronological.map((round) => round.score),
       trendDates: chronological.map((round) => formatDate(round.date))
     };
@@ -433,22 +293,28 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
     if (!lastRound || lastRound.hasStats === false) {
       return null;
     }
-    if (lastRound.threePutts >= 2) {
+    const isGhin = lastRound.source === "ghin";
+    /* GHIN imports zero-fill detail stats they never carried — only judge
+       a synced round on the stats it actually has. */
+    if (!isGhin && lastRound.threePutts >= 2) {
       return { section: "Putting", reason: `${lastRound.threePutts} three-putts last round` };
     }
-    if (lastRound.penalties >= 2) {
+    if (!isGhin && lastRound.penalties >= 2) {
       return { section: "Driver", reason: `${lastRound.penalties} penalty strokes last round` };
     }
-    if (lastRound.upAndDownAttempted > 0 && lastRound.upAndDownMade / lastRound.upAndDownAttempted < 0.4) {
+    if (!isGhin && lastRound.upAndDownAttempted > 0 && lastRound.upAndDownMade / lastRound.upAndDownAttempted < 0.4) {
       return {
         section: "Short Game",
         reason: `${lastRound.upAndDownMade}/${lastRound.upAndDownAttempted} up-and-downs last round`
       };
     }
-    if (lastRound.fairwaysHit < 7) {
+    if (lastRound.putts >= 36) {
+      return { section: "Putting", reason: `${lastRound.putts} putts last round` };
+    }
+    if (lastRound.fairwaysHit > 0 && lastRound.fairwaysHit < 7) {
       return { section: "Driver", reason: `${lastRound.fairwaysHit} fairways last round` };
     }
-    if (lastRound.gir < 6) {
+    if (lastRound.gir > 0 && lastRound.gir < 6) {
       return { section: "Irons", reason: `${lastRound.gir} greens in regulation last round` };
     }
     return { section: "Wedges", reason: "ball-striking on target — sharpen scoring clubs" };
@@ -478,7 +344,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
       }
       const result = data as GhinSyncResult;
       const syncedRounds = result.scores
-        .filter((score) => score.holes === 18)
+        .filter((score) => score.holes === 18 && score.scoreType?.toUpperCase() !== "N")
         .map((score) => enrichRoundWithGrintStats(ghinScoreToRound(score)));
       const { rounds, added } = mergeGhinRounds(roundLogs, syncedRounds);
       setRoundLogs(rounds);
@@ -586,6 +452,14 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
   const addRoundLog = () => {
     setRoundLogs((prev) => [{ id: toId(), ...roundDraft }, ...prev]);
     setRoundDraft((prev) => ({ ...prev, notes: "" }));
+  };
+
+  const deleteRound = (id: string) => {
+    setRoundLogs((prev) => prev.filter((round) => round.id !== id));
+  };
+
+  const removeAllGhinRounds = () => {
+    setRoundLogs((prev) => prev.filter((round) => round.source !== "ghin"));
   };
 
   const startTodaysPlan = () => {
@@ -1139,7 +1013,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
             </div>
           </CollapsibleCard>
 
-          {!performanceStats || !performanceStats.hasStatRounds ? (
+          {!performanceStats ? (
             <Card className="rise-in">
               <SectionTitle
                 eyebrow="TheGrint baseline"
@@ -1193,10 +1067,23 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               <Card className="rise-in">
                 <SectionTitle eyebrow="Averages" title="Performance dashboard" />
                 <div className="grid grid-cols-2 gap-2">
-                  <StatCard label="Avg score" value={performanceStats.avgScore} tone="sand" />
+                  <StatCard
+                    label="Avg score"
+                    value={performanceStats.avgScore}
+                    tone="sand"
+                    sub={`${performanceStats.rounds} regulation rounds`}
+                  />
                   <StatCard label="Best round" value={String(performanceStats.bestRound)} tone="green" />
-                  <StatCard label="Three-putts" value={performanceStats.avgThreePutts} sub="per round · target 0" />
-                  <StatCard label="Soreness" value={performanceStats.avgSoreness} sub="post-round avg" />
+                  <StatCard
+                    label="Three-putts"
+                    value={performanceStats.avgThreePutts !== null ? performanceStats.avgThreePutts.toFixed(1) : "—"}
+                    sub={performanceStats.avgThreePutts !== null ? "per round · target 0" : "log a round in-app to track"}
+                  />
+                  <StatCard
+                    label="Soreness"
+                    value={performanceStats.avgSoreness !== null ? performanceStats.avgSoreness.toFixed(1) : "—"}
+                    sub={performanceStats.avgSoreness !== null ? "post-round avg" : "log a round in-app to track"}
+                  />
                 </div>
               </Card>
 
@@ -1204,41 +1091,65 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                 <SectionTitle
                   eyebrow="Target card"
                   title="Tournament targets"
-                  subtitle="Round averages vs. what a 79–84 round requires. Green fill = on target."
+                  subtitle="Round averages vs. what a 79–84 round requires. Green fill = on target. Stats your synced rounds don't carry fall back to your TheGrint career baseline."
                 />
                 <div className="space-y-4">
-                  <TargetMeter label="Fairways hit" value={performanceStats.avgFairways} target={8} max={14} />
-                  <TargetMeter label="Greens in regulation" value={performanceStats.avgGir} target={7} max={18} />
+                  <TargetMeter
+                    label="Fairways hit"
+                    value={performanceStats.avgFairways ?? GRINT_BASELINES.avgFairwaysPerRound}
+                    target={8}
+                    max={14}
+                    caption={performanceStats.avgFairways === null ? "TheGrint career baseline" : undefined}
+                  />
+                  <TargetMeter
+                    label="Greens in regulation"
+                    value={performanceStats.avgGir ?? GRINT_BASELINES.avgGirPerRound}
+                    target={7}
+                    max={18}
+                    caption={performanceStats.avgGir === null ? "TheGrint career baseline" : undefined}
+                  />
                   <TargetMeter
                     label="Putts"
-                    value={performanceStats.avgPutts}
+                    value={performanceStats.avgPutts ?? GRINT_BASELINES.avgPutts}
                     target={30}
                     max={40}
                     lowerIsBetter
+                    caption={performanceStats.avgPutts === null ? "TheGrint career baseline" : undefined}
                   />
-                  <TargetMeter
-                    label="Penalty strokes"
-                    value={performanceStats.avgPenalties}
-                    target={1}
-                    max={4}
-                    lowerIsBetter
-                  />
-                  <TargetMeter
-                    label="Doubles or worse"
-                    value={performanceStats.avgDoubles}
-                    target={1}
-                    max={4}
-                    lowerIsBetter
-                  />
-                  <TargetMeter label="Birdies" value={performanceStats.avgBirdies} target={2} max={6} />
+                  {performanceStats.avgPenalties !== null ? (
+                    <TargetMeter
+                      label="Penalty strokes"
+                      value={performanceStats.avgPenalties}
+                      target={1}
+                      max={4}
+                      lowerIsBetter
+                    />
+                  ) : null}
+                  {performanceStats.avgDoubles !== null ? (
+                    <TargetMeter
+                      label="Doubles or worse"
+                      value={performanceStats.avgDoubles}
+                      target={1}
+                      max={4}
+                      lowerIsBetter
+                    />
+                  ) : null}
+                  {performanceStats.avgBirdies !== null ? (
+                    <TargetMeter label="Birdies" value={performanceStats.avgBirdies} target={2} max={6} />
+                  ) : null}
                   <TargetMeter
                     label="Scrambling"
-                    value={performanceStats.scramblingPct}
+                    value={performanceStats.scramblingPct ?? GRINT_BASELINES.scramblingPct}
                     target={40}
                     max={100}
                     format={(v) => `${v.toFixed(0)}%`}
+                    caption={performanceStats.scramblingPct === null ? "TheGrint career baseline" : undefined}
                   />
                 </div>
+                <p className="mt-3 text-[10px] leading-relaxed text-faint">
+                  Penalties, doubles, and birdies appear once you log a round in the journal below — GHIN doesn&apos;t
+                  carry them.
+                </p>
               </Card>
             </>
           ) : (
@@ -1297,6 +1208,48 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               Save Round
             </button>
           </Card>
+
+          {roundLogs.length > 0 ? (
+            <CollapsibleCard
+              title={`Round history (${roundLogs.length})`}
+              subtitle="Every stored round. Delete anything that shouldn't count."
+            >
+              <div className="space-y-2">
+                {[...roundLogs]
+                  .sort((a, b) => parseDateKey(b.date).getTime() - parseDateKey(a.date).getTime())
+                  .map((round) => (
+                    <div key={round.id} className="well flex items-center gap-3 rounded-xl px-3 py-2.5">
+                      <span className="w-9 shrink-0 text-lg font-semibold text-sand">{round.score}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-text">{round.course}</p>
+                        <p className="text-[10px] text-faint">
+                          {formatDate(round.date)}
+                          {round.source === "ghin" ? " · GHIN" : " · logged here"}
+                          {!isRegulationRound(round) ? " · executive course (not in stats)" : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => deleteRound(round.id)}
+                        aria-label={`Delete round ${round.score} on ${formatDate(round.date)}`}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 text-faint transition hover:border-danger/50 hover:text-danger"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+              </div>
+              {roundLogs.some((round) => round.source === "ghin") ? (
+                <button
+                  type="button"
+                  onClick={removeAllGhinRounds}
+                  className="mt-3 w-full rounded-xl border border-danger/40 bg-danger/[0.08] px-4 py-2.5 text-sm font-semibold text-danger transition hover:bg-danger/15"
+                >
+                  Remove all GHIN-synced rounds
+                </button>
+              ) : null}
+            </CollapsibleCard>
+          ) : null}
         </div>
       ) : null}
 

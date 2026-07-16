@@ -464,7 +464,8 @@ export function TargetMeter({
   target,
   max,
   lowerIsBetter = false,
-  format = (v: number) => v.toFixed(1)
+  format = (v: number) => v.toFixed(1),
+  caption
 }: {
   label: string;
   value: number;
@@ -472,6 +473,7 @@ export function TargetMeter({
   max: number;
   lowerIsBetter?: boolean;
   format?: (v: number) => string;
+  caption?: string;
 }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
   const targetPct = Math.max(0, Math.min(100, (target / max) * 100));
@@ -500,6 +502,7 @@ export function TargetMeter({
           title={`Target ${format(target)}`}
         />
       </div>
+      {caption ? <p className="mt-1 text-right text-[9px] text-faint">{caption}</p> : null}
     </div>
   );
 }

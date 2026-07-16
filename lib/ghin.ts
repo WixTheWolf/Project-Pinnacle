@@ -27,6 +27,8 @@ export interface GhinScore {
   score: number;
   holes: number;
   differential: number | null;
+  courseRating: number | null;
+  scoreType: string | null;
   usedInIndex: boolean;
   stats: {
     putts: number | null;
@@ -61,8 +63,16 @@ export function ghinScoreToRound(score: GhinScore): RoundLog {
     mentalGrade: 0,
     notes: `Synced from GHIN${hasStats ? "" : " (score only)"}`,
     source: "ghin",
-    hasStats
+    hasStats,
+    courseRating: score.courseRating
   };
+}
+
+/* Regulation-course test: manual rounds always count; GHIN rounds on
+   executive/par-3 layouts (course rating < 66) are kept in history but
+   excluded from regulation scoring stats and the 79-84 trend. */
+export function isRegulationRound(round: RoundLog): boolean {
+  return round.courseRating === undefined || round.courseRating === null || round.courseRating >= 66;
 }
 
 /* Merge synced rounds into the existing log without clobbering manual entries
