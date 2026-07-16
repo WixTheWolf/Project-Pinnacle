@@ -27,6 +27,7 @@ import {
 } from "@/lib/field-data";
 import { CHECKLIST_GUIDES } from "@/lib/coaching-guides";
 import { GhinSyncResult, ghinScoreToRound, mergeGhinRounds } from "@/lib/ghin";
+import { enrichRoundWithGrintStats, GRINT_BASELINES, GRINT_RECORDS, GRINT_TREND_URL } from "@/lib/grint-snapshot";
 import { ChecklistState, PracticeLog, ReadinessEntry, RoundLog, Settings, TabKey } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import {
@@ -478,7 +479,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
       const result = data as GhinSyncResult;
       const syncedRounds = result.scores
         .filter((score) => score.holes === 18)
-        .map(ghinScoreToRound);
+        .map((score) => enrichRoundWithGrintStats(ghinScoreToRound(score)));
       const { rounds, added } = mergeGhinRounds(roundLogs, syncedRounds);
       setRoundLogs(rounds);
       if (result.handicapIndex) {
@@ -1129,6 +1130,55 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
             </div>
           </CollapsibleCard>
 
+          {!performanceStats || !performanceStats.hasStatRounds ? (
+            <Card className="rise-in">
+              <SectionTitle
+                eyebrow="TheGrint baseline"
+                title="Where your game stands"
+                subtitle={`Career baselines from your TheGrint account through ${formatDate(
+                  GRINT_BASELINES.capturedAt
+                )}. Sync GHIN above to replace these with live rounds.`}
+              />
+              <div className="mb-4 grid grid-cols-2 gap-2">
+                <StatCard label="Avg score" value={String(GRINT_BASELINES.avgScore)} tone="sand" />
+                <StatCard
+                  label="Best score"
+                  value={String(GRINT_BASELINES.bestScore)}
+                  tone="green"
+                  sub={GRINT_BASELINES.bestScoreCourse}
+                />
+                <StatCard label="Rounds posted" value={String(GRINT_BASELINES.roundsPlayed)} />
+                <StatCard label="Handicap index" value={GRINT_BASELINES.handicapIndex} sub="USGA / GHIN" />
+              </div>
+              <div className="space-y-4">
+                <TargetMeter
+                  label="Fairways hit"
+                  value={GRINT_BASELINES.avgFairwaysPerRound}
+                  target={8}
+                  max={14}
+                />
+                <TargetMeter label="Greens in regulation" value={GRINT_BASELINES.avgGirPerRound} target={7} max={18} />
+                <TargetMeter label="Putts" value={GRINT_BASELINES.avgPutts} target={30} max={40} lowerIsBetter />
+                <TargetMeter
+                  label="Scrambling"
+                  value={GRINT_BASELINES.scramblingPct}
+                  target={40}
+                  max={100}
+                  format={(v) => `${v.toFixed(0)}%`}
+                />
+              </div>
+              <a
+                href={GRINT_TREND_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-sand/50 bg-sand/10 px-3 py-1.5 text-xs font-semibold text-sand transition hover:bg-sand/20"
+              >
+                <Link2 size={12} />
+                Open TheGrint trends
+              </a>
+            </Card>
+          ) : null}
+
           {performanceStats ? (
             <>
               <Card className="rise-in">
@@ -1191,6 +1241,19 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               />
             </Card>
           )}
+
+          <Card className="rise-in">
+            <SectionTitle
+              eyebrow="Trophy room"
+              title="Records to beat"
+              subtitle="Personal bests from TheGrint. Every one you top before August 20 is proof the plan is working."
+            />
+            <div className="grid grid-cols-2 gap-2">
+              {GRINT_RECORDS.map((record) => (
+                <StatCard key={record.label} label={record.label} value={record.value} sub={record.sub} />
+              ))}
+            </div>
+          </Card>
 
           <Card>
             <SectionTitle title="Round journal" subtitle="Track consistency. Eliminate blow-up holes." />
