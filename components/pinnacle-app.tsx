@@ -40,7 +40,8 @@ import {
   swingKeyForToday
 } from "@/lib/plan";
 import { GhinSyncResult, ghinScoreToRound, isRegulationRound, mergeGhinRounds } from "@/lib/ghin";
-import { enrichRoundWithGrintStats, GRINT_BASELINES, GRINT_RECORDS, GRINT_TREND_URL } from "@/lib/grint-snapshot";
+import { enrichRoundWithGrintStats, GRINT_BASELINES, GRINT_TREND_URL, GRINT_TROPHIES } from "@/lib/grint-snapshot";
+import { computeGhinRecords } from "@/lib/records";
 import { ChecklistState, PracticeLog, ReadinessEntry, RoundLog, Settings, TabKey } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import {
@@ -72,7 +73,7 @@ const buttonClass =
   "rounded-xl border border-sand/50 bg-sand/[0.12] px-4 py-2.5 text-sm font-semibold text-sand transition hover:bg-sand/20 active:scale-[0.99]";
 
 const roundFieldConfig: Array<{
-  key: keyof Omit<RoundLog, "id" | "notes" | "source" | "hasStats" | "courseRating">;
+  key: keyof Omit<RoundLog, "id" | "notes" | "source" | "hasStats" | "courseRating" | "front9" | "back9" | "differential">;
   label: string;
   type: "date" | "number" | "text";
 }> = [
@@ -288,6 +289,10 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
     }
     return [...roundLogs].sort((a, b) => parseDateKey(b.date).getTime() - parseDateKey(a.date).getTime())[0];
   }, [roundLogs]);
+
+  const ghinRecords = useMemo(() => computeGhinRecords(roundLogs), [roundLogs]);
+  const pbScore = ghinRecords.find((tile) => tile.label === "Best score")?.value;
+  const pbNine = ghinRecords.find((tile) => tile.label === "Best 9 holes")?.value;
 
   const practiceFocus = useMemo(() => {
     if (!lastRound || lastRound.hasStats === false) {
@@ -561,6 +566,17 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                 <span>
                   Last round <strong className="text-text">{lastRound.score}</strong> ·{" "}
                   {formatDate(lastRound.date)}
+                </span>
+              ) : null}
+              {pbScore ? (
+                <span>
+                  PB <strong className="text-turf">{pbScore}</strong>
+                  {pbNine ? (
+                    <>
+                      {" "}
+                      · best 9: <strong className="text-turf">{pbNine}</strong>
+                    </>
+                  ) : null}
                 </span>
               ) : null}
             </div>
@@ -1164,16 +1180,42 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
 
           <Card className="rise-in">
             <SectionTitle
-              eyebrow="Trophy room"
-              title="Records to beat"
-              subtitle="Personal bests from TheGrint. Every one you top before August 20 is proof the plan is working."
+              eyebrow="GHIN trophy room · live"
+              title="Full-history records"
+              subtitle="Computed from your complete GHIN posting history plus in-app rounds — updates on every sync. Beat one before August 20 and it updates itself."
             />
             <div className="grid grid-cols-2 gap-2">
-              {GRINT_RECORDS.map((record) => (
-                <StatCard key={record.label} label={record.label} value={record.value} sub={record.sub} />
+              {ghinRecords.map((record) => (
+                <StatCard
+                  key={record.label}
+                  label={record.label}
+                  value={record.value}
+                  sub={record.sub}
+                  tone={record.tone}
+                />
               ))}
             </div>
           </Card>
+
+          <CollapsibleCard
+            title="TheGrint trophy room"
+            subtitle="The complete Grint record book — Grint-posted rounds only (42 since 2023)."
+          >
+            <div className="space-y-4">
+              {GRINT_TROPHIES.map((group) => (
+                <div key={group.group}>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-sand">
+                    {group.group}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {group.records.map((record) => (
+                      <StatCard key={record.label} label={record.label} value={record.value} sub={record.sub} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CollapsibleCard>
 
           <Card>
             <SectionTitle title="Round journal" subtitle="Track consistency. Eliminate blow-up holes." />

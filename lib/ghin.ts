@@ -30,10 +30,13 @@ export interface GhinScore {
   courseRating: number | null;
   scoreType: string | null;
   usedInIndex: boolean;
+  front9: number | null;
+  back9: number | null;
   stats: {
     putts: number | null;
     fairwaysHit: number | null;
     gir: number | null;
+    birdies: number | null;
   };
 }
 
@@ -56,7 +59,7 @@ export function ghinScoreToRound(score: GhinScore): RoundLog {
     penalties: 0,
     upAndDownMade: 0,
     upAndDownAttempted: 0,
-    birdies: 0,
+    birdies: score.stats.birdies ?? 0,
     doublesOrWorse: 0,
     threePutts: 0,
     soreness: 0,
@@ -64,7 +67,10 @@ export function ghinScoreToRound(score: GhinScore): RoundLog {
     notes: `Synced from GHIN${hasStats ? "" : " (score only)"}`,
     source: "ghin",
     hasStats,
-    courseRating: score.courseRating
+    courseRating: score.courseRating,
+    front9: score.front9,
+    back9: score.back9,
+    differential: score.differential
   };
 }
 

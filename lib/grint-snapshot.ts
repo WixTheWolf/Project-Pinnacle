@@ -31,17 +31,66 @@ export const GRINT_BASELINES = {
   par3AccuracyPct: 60.4
 } as const;
 
-/* Personal records from TheGrint Trophy Room — targets to beat before
-   tournament week. */
-export const GRINT_RECORDS = [
-  { label: "Best score", value: "82", sub: "Lakewood · Oct 31, 2025" },
-  { label: "Best 9 holes", value: "40", sub: "front and back" },
-  { label: "Fewest putts", value: "33", sub: "single round" },
-  { label: "Best fairways", value: "93%", sub: "single round" },
-  { label: "Most birdies", value: "3", sub: "single round · 12 career" },
-  { label: "3-putt-free streak", value: "44", sub: "holes" },
-  { label: "Rounds in the 80s", value: "11", sub: "of 42 posted" },
-  { label: "Most pars", value: "10", sub: "single round" }
+/* TheGrint Trophy Room, captured in full (thegrint.com, member since 2023,
+   42 posted rounds). Grint-posted rounds only — the live GHIN trophy room
+   covers the complete posting history. */
+export const GRINT_TROPHIES: ReadonlyArray<{
+  group: string;
+  records: ReadonlyArray<{ label: string; value: string; sub?: string }>;
+}> = [
+  {
+    group: "Scoring",
+    records: [
+      { label: "Best score", value: "82", sub: "+10 · Lakewood · Oct 31, 2025" },
+      { label: "Best net", value: "69", sub: "single round" },
+      { label: "Best 9 holes", value: "40", sub: "front and back" },
+      { label: "Avg score", value: "89.7", sub: "42 rounds · best course avg 88.9" },
+      { label: "Rounds in the 80s", value: "11", sub: "plus 5 in the 90s" },
+      { label: "Rounds posted", value: "42", sub: "35 attested · 6 courses" }
+    ]
+  },
+  {
+    group: "Single-round bests",
+    records: [
+      { label: "Fewest putts", value: "33", sub: "0 three-putts that day" },
+      { label: "Fairways", value: "93%", sub: "accuracy record" },
+      { label: "Greens", value: "56%", sub: "GIR record" },
+      { label: "Grints", value: "56%", sub: "par-or-better holes" },
+      { label: "Most pars", value: "10" },
+      { label: "Most birdies", value: "3" },
+      { label: "One-putts", value: "6" },
+      { label: "Par saves", value: "3", sub: "plus 1 sand save" }
+    ]
+  },
+  {
+    group: "Career totals",
+    records: [
+      { label: "Birdies", value: "12", sub: "1 back-to-back set" },
+      { label: "3-putt-free rounds", value: "3" },
+      { label: "Triple-bogey-free", value: "1", sub: "clean card rounds" },
+      { label: "Par-3 accuracy", value: "60.4%", sub: "career average" }
+    ]
+  },
+  {
+    group: "Streaks",
+    records: [
+      { label: "3-putt free", value: "44", sub: "holes" },
+      { label: "Fairways in a row", value: "13" },
+      { label: "Double-bogey free", value: "10", sub: "holes" },
+      { label: "Greens in a row", value: "4" },
+      { label: "Grints in a row", value: "4" },
+      { label: "Par-save putts", value: "3", sub: "in a row" }
+    ]
+  },
+  {
+    group: "Tough days to retire",
+    records: [
+      { label: "Worst score", value: "100", sub: "net 87" },
+      { label: "Most putts", value: "41", sub: "5 three-putts" },
+      { label: "Most penalties", value: "12.5", sub: "4 OB · 6 bunkers" },
+      { label: "Worst greens", value: "17%", sub: "43% fairways that day" }
+    ]
+  }
 ] as const;
 
 interface GrintRoundStats {

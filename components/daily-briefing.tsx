@@ -16,6 +16,7 @@ import {
 import { DAILY_MOBILITY, DEFAULT_SETTINGS, SWING_KEYS, WEEKLY_TEMPLATE } from "@/lib/content";
 import { GRINT_BASELINES } from "@/lib/grint-snapshot";
 import { isRegulationRound } from "@/lib/ghin";
+import { computeGhinRecords } from "@/lib/records";
 import {
   daysTo,
   estimateDurationMinutes,
@@ -101,8 +102,14 @@ export function DailyBriefing() {
     } else if (currentPhase.includes("Simulation")) {
       items.push("Simulation phase: pressure reps and full-round tracking over rehearsal.");
     }
+    const records = computeGhinRecords(roundLogs);
+    const pb = records.find((tile) => tile.label === "Best score")?.value;
+    const pbNine = records.find((tile) => tile.label === "Best 9 holes")?.value;
+    if (pb) {
+      items.push(`Records watch: best round ${pb}${pbNine ? `, best 9 holes ${pbNine}` : ""} — beat one before Aug 20.`);
+    }
     return items;
-  }, [todayReadiness, mobilityDone, lastRound, currentPhase]);
+  }, [todayReadiness, mobilityDone, lastRound, currentPhase, roundLogs]);
 
   const tabs = [
     {

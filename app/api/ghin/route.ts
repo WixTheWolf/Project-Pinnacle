@@ -137,10 +137,13 @@ export async function POST(request: Request) {
           courseRating: numberOrNull(raw.course_rating),
           scoreType: stringOrNull(raw.score_type),
           usedInIndex: Boolean(raw.used ?? false),
+          front9: numberOrNull(raw.front9_adjusted ?? raw.front_nine_adjusted ?? raw.front9_score ?? raw.front9),
+          back9: numberOrNull(raw.back9_adjusted ?? raw.back_nine_adjusted ?? raw.back9_score ?? raw.back9),
           stats: {
             putts: numberOrNull(statistics.putts_total ?? statistics.putts),
             fairwaysHit: numberOrNull(statistics.fairways_hit ?? statistics.fairway_hits),
-            gir: numberOrNull(statistics.gir_total ?? statistics.greens_in_regulation)
+            gir: numberOrNull(statistics.gir_total ?? statistics.greens_in_regulation),
+            birdies: numberOrNull(statistics.birdies_or_better ?? statistics.birdies)
           }
         };
       })

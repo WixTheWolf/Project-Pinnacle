@@ -74,6 +74,10 @@ export interface RoundLog {
   /* USGA course rating from GHIN — used to exclude executive/par-3 courses
      (rating < 66) from regulation scoring stats */
   courseRating?: number | null;
+  /* GHIN extras when available */
+  front9?: number | null;
+  back9?: number | null;
+  differential?: number | null;
 }
 
 export interface ChecklistState {
