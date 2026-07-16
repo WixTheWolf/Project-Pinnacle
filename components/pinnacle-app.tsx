@@ -26,6 +26,7 @@ import {
   SkillCategory
 } from "@/lib/field-data";
 import { CHECKLIST_GUIDES } from "@/lib/coaching-guides";
+import { GhinSyncResult, ghinScoreToRound, mergeGhinRounds } from "@/lib/ghin";
 import { ChecklistState, PracticeLog, ReadinessEntry, RoundLog, Settings, TabKey } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import {
@@ -47,7 +48,7 @@ import {
   TargetMeter
 } from "@/components/charts";
 import { DrillDiagram } from "@/components/drill-diagrams";
-import { ChevronDown, Clock3, Flame, Gauge, Play, Quote, Target } from "lucide-react";
+import { ChevronDown, Clock3, Flame, Gauge, Link2, Play, Quote, RefreshCw, Target } from "lucide-react";
 
 const READINESS_KEYS = [
   "sleep",
@@ -85,7 +86,7 @@ const buttonClass =
   "rounded-xl border border-sand/50 bg-sand/[0.12] px-4 py-2.5 text-sm font-semibold text-sand transition hover:bg-sand/20 active:scale-[0.99]";
 
 const roundFieldConfig: Array<{
-  key: keyof Omit<RoundLog, "id" | "notes">;
+  key: keyof Omit<RoundLog, "id" | "notes" | "source" | "hasStats">;
   label: string;
   type: "date" | "number" | "text";
 }> = [
@@ -277,6 +278,16 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
 
   const [drillFilter, setDrillFilter] = useState("All");
 
+  const [ghinSync, setGhinSync] = useLocalStorage<{
+    lastSynced: string | null;
+    handicapIndex: string | null;
+    lowHandicapIndex: string | null;
+  }>("pp-ghin-sync", { lastSynced: null, handicapIndex: null, lowHandicapIndex: null });
+  const [ghinEmail, setGhinEmail] = useState("");
+  const [ghinPassword, setGhinPassword] = useState("");
+  const [ghinBusy, setGhinBusy] = useState(false);
+  const [ghinMessage, setGhinMessage] = useState<{ tone: "green" | "danger"; text: string } | null>(null);
+
   const ready =
     settingsHydrated &&
     readinessHydrated &&
@@ -349,9 +360,19 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
     if (roundLogs.length === 0) {
       return null;
     }
+    /* Score-only rounds (e.g. GHIN imports without entered statistics) count
+       toward scores/trend but are excluded from per-stat averages. */
+    const withStats = roundLogs.filter((round) => round.hasStats !== false);
     const sum = roundLogs.reduce(
       (acc, round) => {
         acc.score += round.score;
+        acc.best = Math.min(acc.best, round.score);
+        return acc;
+      },
+      { score: 0, best: Number.POSITIVE_INFINITY }
+    );
+    const statSum = withStats.reduce(
+      (acc, round) => {
         acc.fairways += round.fairwaysHit;
         acc.gir += round.gir;
         acc.putts += round.putts;
@@ -362,11 +383,9 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
         acc.upDownMade += round.upAndDownMade;
         acc.upDownAttempted += round.upAndDownAttempted;
         acc.soreness += round.soreness;
-        acc.best = Math.min(acc.best, round.score);
         return acc;
       },
       {
-        score: 0,
         fairways: 0,
         gir: 0,
         putts: 0,
@@ -376,30 +395,113 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
         threePutts: 0,
         upDownMade: 0,
         upDownAttempted: 0,
-        soreness: 0,
-        best: Number.POSITIVE_INFINITY
+        soreness: 0
       }
     );
     const n = roundLogs.length;
+    const nStats = Math.max(withStats.length, 1);
     const chronological = [...roundLogs].sort(
       (a, b) => parseDateKey(a.date).getTime() - parseDateKey(b.date).getTime()
     );
     return {
       avgScore: (sum.score / n).toFixed(1),
-      avgFairways: sum.fairways / n,
-      avgGir: sum.gir / n,
-      avgPutts: sum.putts / n,
-      avgPenalties: sum.penalties / n,
-      avgDoubles: sum.doubles / n,
-      avgBirdies: sum.birdies / n,
-      avgThreePutts: (sum.threePutts / n).toFixed(1),
-      scramblingPct: sum.upDownAttempted > 0 ? (sum.upDownMade / sum.upDownAttempted) * 100 : 0,
-      avgSoreness: (sum.soreness / n).toFixed(1),
+      hasStatRounds: withStats.length > 0,
+      avgFairways: statSum.fairways / nStats,
+      avgGir: statSum.gir / nStats,
+      avgPutts: statSum.putts / nStats,
+      avgPenalties: statSum.penalties / nStats,
+      avgDoubles: statSum.doubles / nStats,
+      avgBirdies: statSum.birdies / nStats,
+      avgThreePutts: (statSum.threePutts / nStats).toFixed(1),
+      scramblingPct: statSum.upDownAttempted > 0 ? (statSum.upDownMade / statSum.upDownAttempted) * 100 : 0,
+      avgSoreness: (statSum.soreness / nStats).toFixed(1),
       bestRound: sum.best,
       trendScores: chronological.map((round) => round.score),
       trendDates: chronological.map((round) => formatDate(round.date))
     };
   }, [roundLogs]);
+
+  const lastRound = useMemo(() => {
+    if (roundLogs.length === 0) {
+      return null;
+    }
+    return [...roundLogs].sort((a, b) => parseDateKey(b.date).getTime() - parseDateKey(a.date).getTime())[0];
+  }, [roundLogs]);
+
+  const practiceFocus = useMemo(() => {
+    if (!lastRound || lastRound.hasStats === false) {
+      return null;
+    }
+    if (lastRound.threePutts >= 2) {
+      return { section: "Putting", reason: `${lastRound.threePutts} three-putts last round` };
+    }
+    if (lastRound.penalties >= 2) {
+      return { section: "Driver", reason: `${lastRound.penalties} penalty strokes last round` };
+    }
+    if (lastRound.upAndDownAttempted > 0 && lastRound.upAndDownMade / lastRound.upAndDownAttempted < 0.4) {
+      return {
+        section: "Short Game",
+        reason: `${lastRound.upAndDownMade}/${lastRound.upAndDownAttempted} up-and-downs last round`
+      };
+    }
+    if (lastRound.fairwaysHit < 7) {
+      return { section: "Driver", reason: `${lastRound.fairwaysHit} fairways last round` };
+    }
+    if (lastRound.gir < 6) {
+      return { section: "Irons", reason: `${lastRound.gir} greens in regulation last round` };
+    }
+    return { section: "Wedges", reason: "ball-striking on target — sharpen scoring clubs" };
+  }, [lastRound]);
+
+  const syncGhin = async () => {
+    if (!ghinEmail.trim() || !ghinPassword) {
+      setGhinMessage({ tone: "danger", text: "Enter your GHIN email and password to sync." });
+      return;
+    }
+    setGhinBusy(true);
+    setGhinMessage(null);
+    try {
+      const response = await fetch("/api/ghin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: ghinEmail.trim(),
+          password: ghinPassword,
+          ghinNumber: settings.ghinNumber ?? DEFAULT_SETTINGS.ghinNumber
+        })
+      });
+      const data = (await response.json()) as (GhinSyncResult & { error?: string }) | { error: string };
+      if (!response.ok || "error" in data && data.error) {
+        setGhinMessage({ tone: "danger", text: ("error" in data && data.error) || "GHIN sync failed." });
+        return;
+      }
+      const result = data as GhinSyncResult;
+      const syncedRounds = result.scores
+        .filter((score) => score.holes === 18)
+        .map(ghinScoreToRound);
+      const { rounds, added } = mergeGhinRounds(roundLogs, syncedRounds);
+      setRoundLogs(rounds);
+      if (result.handicapIndex) {
+        setSettings((prev) => ({ ...prev, handicap: result.handicapIndex as string }));
+      }
+      setGhinSync({
+        lastSynced: new Date().toISOString(),
+        handicapIndex: result.handicapIndex,
+        lowHandicapIndex: result.lowHandicapIndex
+      });
+      setGhinPassword("");
+      setGhinMessage({
+        tone: "green",
+        text: `Synced ${result.scores.length} GHIN scores — ${added} new round${added === 1 ? "" : "s"} imported${
+          result.handicapIndex ? ` · index ${result.handicapIndex}` : ""
+        }.`
+      });
+    } catch {
+      setGhinMessage({ tone: "danger", text: "Network error reaching the GHIN sync service." });
+    } finally {
+      setGhinBusy(false);
+    }
+  };
 
   const fieldByHandicap = useMemo(() => [...FIELD_PLAYERS].sort((a, b) => a.handicap - b.handicap), []);
   const youPlayer = useMemo(
@@ -565,6 +667,19 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
             <div className="mt-2.5">
               <ProgressBar value={progressToTournament} />
             </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+              <span>
+                Index <strong className="text-sand">{settings.handicap}</strong>
+                {ghinSync.lowHandicapIndex ? ` · low ${ghinSync.lowHandicapIndex}` : ""} → goal{" "}
+                <strong className="text-turf">{settings.goalHandicap}</strong>
+              </span>
+              {lastRound ? (
+                <span>
+                  Last round <strong className="text-text">{lastRound.score}</strong> ·{" "}
+                  {formatDate(lastRound.date)}
+                </span>
+              ) : null}
+            </div>
           </Card>
 
           <CollapsibleCard
@@ -648,6 +763,25 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
 
       {activeTab === "practice" ? (
         <div className="space-y-4">
+          {practiceFocus ? (
+            <Card hero className="rise-in">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Eyebrow>Today&apos;s focus · from your last round</Eyebrow>
+                  <h3 className="mt-1 font-display text-lg font-semibold">{practiceFocus.section}</h3>
+                  <p className="mt-1 text-xs text-muted">{practiceFocus.reason}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDrillFilter(practiceFocus.section)}
+                  className={buttonClass}
+                >
+                  <Target size={14} className="mr-2 inline-block" />
+                  Show drills
+                </button>
+              </div>
+            </Card>
+          ) : null}
           <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
             {drillSections.map((section) => (
               <button
@@ -826,6 +960,16 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
 
       {activeTab === "recovery" ? (
         <div className="space-y-4">
+          {lastRound && lastRound.hasStats !== false && lastRound.soreness >= 6 ? (
+            <Card hero className="rise-in">
+              <Eyebrow>Recovery priority</Eyebrow>
+              <p className="mt-2 text-sm leading-relaxed text-text">
+                You logged soreness {lastRound.soreness}/10 after your last round ({formatDate(lastRound.date)}).
+                Prioritize the {settings.sorenessAreas.split(",")[0]?.trim().toLowerCase() ?? "back"} routine below
+                and keep today&apos;s loading light.
+              </p>
+            </Card>
+          ) : null}
           <Card>
             <SectionTitle
               title="Daily 15-minute mobility"
@@ -907,10 +1051,83 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               />
             ) : (
               <div className="well rounded-xl p-6 text-center">
-                <p className="text-sm text-muted">Log your first round to draw the scoring trend.</p>
+                <p className="text-sm text-muted">
+                  Log a round below or sync your GHIN history to draw the scoring trend.
+                </p>
               </div>
             )}
           </Card>
+
+          <CollapsibleCard
+            title="GHIN + TheGrint sync"
+            subtitle={
+              ghinSync.lastSynced
+                ? `Last synced ${new Date(ghinSync.lastSynced).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit"
+                  })} · index ${ghinSync.handicapIndex ?? settings.handicap}`
+                : "Pull your posted rounds and live handicap index into every tab."
+            }
+            defaultOpen={roundLogs.length === 0}
+          >
+            <div className="space-y-3">
+              <div className="well rounded-xl p-3 text-xs leading-relaxed text-muted">
+                <p>
+                  <Link2 size={12} className="mr-1.5 inline-block text-sand" />
+                  Rounds you post in <span className="text-text">TheGrint</span> flow to your GHIN record
+                  automatically, so one GHIN sync captures both. Your password is sent once to GHIN to fetch
+                  scores and is never stored.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-xs text-muted">
+                  GHIN number
+                  <input
+                    className={`${textInputClass} mt-1`}
+                    inputMode="numeric"
+                    value={settings.ghinNumber ?? DEFAULT_SETTINGS.ghinNumber ?? ""}
+                    onChange={(event) => setSettings((prev) => ({ ...prev, ghinNumber: event.target.value }))}
+                  />
+                </label>
+                <label className="block text-xs text-muted">
+                  GHIN email
+                  <input
+                    type="email"
+                    autoComplete="username"
+                    className={`${textInputClass} mt-1`}
+                    value={ghinEmail}
+                    onChange={(event) => setGhinEmail(event.target.value)}
+                  />
+                </label>
+              </div>
+              <label className="block text-xs text-muted">
+                GHIN password
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  className={`${textInputClass} mt-1`}
+                  value={ghinPassword}
+                  onChange={(event) => setGhinPassword(event.target.value)}
+                />
+              </label>
+              <button type="button" className={`${buttonClass} w-full`} onClick={syncGhin} disabled={ghinBusy}>
+                <RefreshCw size={14} className={`mr-2 inline-block ${ghinBusy ? "animate-spin" : ""}`} />
+                {ghinBusy ? "Syncing with GHIN..." : "Sync GHIN rounds"}
+              </button>
+              {ghinMessage ? (
+                <p className={`text-xs ${ghinMessage.tone === "green" ? "text-turf" : "text-danger"}`}>
+                  {ghinMessage.text}
+                </p>
+              ) : null}
+              <p className="text-[10px] leading-relaxed text-faint">
+                Synced rounds carry your score, date, course, and tees; GHIN only includes putts/fairways/greens
+                when you entered them while posting. Score-only rounds feed the trend and averages without
+                skewing the per-stat target meters.
+              </p>
+            </div>
+          </CollapsibleCard>
 
           {performanceStats ? (
             <>
@@ -1049,7 +1266,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                   You · {youPlayer.handedness === "Unknown" ? "Handedness not listed" : `${youPlayer.handedness}-handed`}
                 </p>
               </div>
-              <HandicapBadge handicap={youPlayer.handicap} label={youPlayer.handicapLabel} />
+              <HandicapBadge handicap={youPlayer.handicap} label={settings.handicap} />
             </div>
 
             <div className="mt-3">
@@ -1204,6 +1421,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               <Pill tone="sand">{formatDate(settings.tournamentDate)}</Pill>
               <Pill tone="default">Tee time {settings.teeTime}</Pill>
               <Pill tone="green">Goal {settings.goalScore}</Pill>
+              <Pill tone="default">HCP {settings.handicap}</Pill>
             </div>
           </Card>
 
@@ -1278,6 +1496,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                   ["tournamentDate", "Tournament date", "date"],
                   ["course", "Course", "text"],
                   ["handicap", "Handicap", "text"],
+                  ["ghinNumber", "GHIN number", "text"],
                   ["goalScore", "Goal score", "text"],
                   ["teeTime", "Tee time", "time"],
                   ["wedgeDistances", "Wedge distances", "text"],

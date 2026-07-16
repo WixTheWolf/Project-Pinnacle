@@ -337,6 +337,7 @@ export const DEFAULT_SETTINGS: Settings = {
   name: "Matthew Wixted",
   preferredName: "Matt",
   handicap: "12.4",
+  ghinNumber: "11634237",
   goalHandicap: "3",
   goalScore: "79-84",
   tournamentDate: "2026-08-20",

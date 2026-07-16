@@ -11,6 +11,7 @@ export interface Settings {
   name: string;
   preferredName: string;
   handicap: string;
+  ghinNumber?: string;
   goalHandicap: string;
   goalScore: string;
   tournamentDate: string;
@@ -66,6 +67,10 @@ export interface RoundLog {
   soreness: number;
   mentalGrade: number;
   notes: string;
+  /* "ghin" = imported via GHIN sync; absent/manual = logged in-app */
+  source?: "ghin" | "manual";
+  /* false = score-only import; excluded from per-stat averages */
+  hasStats?: boolean;
 }
 
 export interface ChecklistState {
