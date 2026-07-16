@@ -15,6 +15,8 @@ export interface GhinSyncResult {
   lowHandicapIndex: string | null;
   golferName: string | null;
   scores: GhinScore[];
+  /* Populated only when zero scores were found — per-endpoint diagnostics. */
+  debug?: string[];
 }
 
 export interface GhinScore {

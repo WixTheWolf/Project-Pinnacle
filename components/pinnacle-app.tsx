@@ -491,12 +491,21 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
         lowHandicapIndex: result.lowHandicapIndex
       });
       setGhinPassword("");
-      setGhinMessage({
-        tone: "green",
-        text: `Synced ${result.scores.length} GHIN scores — ${added} new round${added === 1 ? "" : "s"} imported${
-          result.handicapIndex ? ` · index ${result.handicapIndex}` : ""
-        }.`
-      });
+      if (result.scores.length === 0) {
+        setGhinMessage({
+          tone: "danger",
+          text: `Login worked (index ${result.handicapIndex ?? "n/a"}) but GHIN returned no score history.${
+            result.debug ? ` Diagnostics: ${result.debug.join(" · ")}` : ""
+          }`
+        });
+      } else {
+        setGhinMessage({
+          tone: "green",
+          text: `Synced ${result.scores.length} GHIN scores — ${added} new round${added === 1 ? "" : "s"} imported${
+            result.handicapIndex ? ` · index ${result.handicapIndex}` : ""
+          }.`
+        });
+      }
     } catch {
       setGhinMessage({ tone: "danger", text: "Network error reaching the GHIN sync service." });
     } finally {

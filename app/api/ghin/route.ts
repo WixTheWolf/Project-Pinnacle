@@ -80,31 +80,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Could not resolve a GHIN number for this account." }, { status: 502 });
     }
 
-    const scoresResponse = await fetch(
+    /* GHIN has shipped several score-history shapes/paths over time; try the
+       known candidates and locate the score array wherever it nests. */
+    const candidates = [
+      `${GHIN_API}/scores.json?golfer_id=${resolvedGhin}&source=${SOURCE}&offset=0&limit=100`,
       `${GHIN_API}/golfers/${resolvedGhin}/scores.json?source=${SOURCE}&per_page=100&page=1`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store"
+      `${GHIN_API}/scores.json?golfer_id=${resolvedGhin}&source=${SOURCE}&per_page=100&page=1`,
+      `${GHIN_API}/golfers/${resolvedGhin}/score_history.json?source=${SOURCE}`
+    ];
+
+    let rawScores: Array<Record<string, unknown>> = [];
+    const debug: string[] = [];
+    for (const url of candidates) {
+      const path = url.slice(GHIN_API.length);
+      try {
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store"
+        });
+        if (!response.ok) {
+          debug.push(`${path} → HTTP ${response.status}`);
+          continue;
+        }
+        const data = (await response.json()) as unknown;
+        const found = findScoreArray(data);
+        debug.push(
+          `${path} → 200, keys [${
+            data && typeof data === "object" ? Object.keys(data as object).join(", ") : typeof data
+          }], scores found: ${found.length}`
+        );
+        if (found.length > 0) {
+          rawScores = found;
+          break;
+        }
+      } catch (candidateError) {
+        debug.push(`${path} → ${candidateError instanceof Error ? candidateError.message : "failed"}`);
       }
-    );
-
-    if (!scoresResponse.ok) {
-      return NextResponse.json(
-        { error: `Logged in, but fetching scores failed (HTTP ${scoresResponse.status}).` },
-        { status: 502 }
-      );
     }
-
-    const scoresData = (await scoresResponse.json()) as Record<string, unknown>;
-    const rawScores =
-      (scoresData.scores as Array<Record<string, unknown>> | undefined) ??
-      (scoresData.Scores as Array<Record<string, unknown>> | undefined) ??
-      [];
 
     const scores: GhinScore[] = rawScores
       .map((raw): GhinScore | null => {
-        const gross = numberOrNull(raw.adjusted_gross_score ?? raw.gross_score ?? raw.score);
-        const date = stringOrNull(raw.played_at ?? raw.date_played ?? raw.score_date);
+        const gross = numberOrNull(raw.adjusted_gross_score ?? raw.gross_score ?? raw.adjusted_score ?? raw.score);
+        const date = stringOrNull(raw.played_at ?? raw.date_played ?? raw.score_date ?? raw.posted_at);
         if (gross === null || !date) {
           return null;
         }
@@ -134,7 +151,8 @@ export async function POST(request: Request) {
       golferName:
         stringOrNull(golfer?.player_name) ??
         ([stringOrNull(golfer?.first_name), stringOrNull(golfer?.last_name)].filter(Boolean).join(" ") || null),
-      scores
+      scores,
+      debug: scores.length === 0 ? debug : undefined
     };
 
     return NextResponse.json(result);
@@ -142,6 +160,41 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: `Could not reach GHIN: ${message}` }, { status: 502 });
   }
+}
+
+/* Depth-limited recursive search for an array of score-like objects — an
+   element counts when it carries both a gross-score field and a date field. */
+function findScoreArray(value: unknown, depth = 0): Array<Record<string, unknown>> {
+  if (depth > 4 || value === null || typeof value !== "object") {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    const objects = value.filter(
+      (item): item is Record<string, unknown> => item !== null && typeof item === "object" && !Array.isArray(item)
+    );
+    const scoreLike = objects.filter(
+      (item) =>
+        (item.adjusted_gross_score ?? item.gross_score ?? item.adjusted_score ?? item.score) !== undefined &&
+        (item.played_at ?? item.date_played ?? item.score_date ?? item.posted_at) !== undefined
+    );
+    if (scoreLike.length > 0) {
+      return scoreLike;
+    }
+    for (const item of objects) {
+      const nested = findScoreArray(item, depth + 1);
+      if (nested.length > 0) {
+        return nested;
+      }
+    }
+    return [];
+  }
+  for (const nestedValue of Object.values(value as Record<string, unknown>)) {
+    const nested = findScoreArray(nestedValue, depth + 1);
+    if (nested.length > 0) {
+      return nested;
+    }
+  }
+  return [];
 }
 
 function numberOrNull(value: unknown): number | null {
