@@ -20,31 +20,68 @@ const monthYear = (date: string) =>
   parseDateKey(date).toLocaleDateString(undefined, { month: "short", year: "numeric" });
 
 /*
-  Known milestones from Matt's GHIN scorecards that predate what a fresh
-  sync may carry (GHIN advanced stats only exist where they were entered).
-  The live computation below takes over the moment a synced round beats one.
-  Source: GHIN View Scorecard — 80 (43/37) on a 6,407-yard par 72 with a
-  birdie-eagle-birdie run on 13-15, 31 putts, 8 GIR.
+  Documented milestones cross-referenced from every posted source — GHIN
+  scorecards (advanced stats) and TheGrint's stats pages. These are floors:
+  the live computation below supersedes one only by beating it.
+
+  Provenance:
+  - GHIN View Scorecard, 80 (+8) on a 6,407-yd par 72: out 43 / in 37 with a
+    birdie-eagle-birdie run on 13-15 (2 birdies + 1 eagle that TheGrint never
+    saw — its eagle shield is empty and its best-over-par is +10). 31 putts
+    (17/14) including a chip-in zero-putt on 6, five one-putts, 8 GIR.
+  - TheGrint handicap chart: best differential 9.1 (imported round, Jul 2025).
+  - TheGrint trophy room: 12 career birdies (Grint-posted rounds only), best
+    3 birdies in a round, best F9 40; + the GHIN eagle round makes 14+
+    documented career birdies.
 */
 const KNOWN_GHIN = {
   bestScore: 80,
-  bestScoreSub: "43 out · 37 in · 31 putts",
+  bestScoreSub: "+8 · 43 out · 37 in · GHIN scorecard",
   bestNine: 37,
   bestNineSub: "back 9 · birdie-eagle-birdie on 13-15",
+  bestDifferential: 9.1,
+  bestDifferentialSub: "imported round · Jul 2025",
   fewestPutts: 31,
+  fewestPuttsSub: "17 out · 14 in · incl. a chip-in",
   eagles: 1,
-  eaglesSub: "par-5 14th · mid birdie-eagle-birdie run"
+  eaglesSub: "par-5 14th · mid birdie-eagle-birdie run",
+  careerBirdies: 14,
+  careerBirdiesSub: "12 Grint-tracked + 2 in the GHIN eagle round",
+  bestBirdiesRound: 3,
+  chipIns: 1,
+  chipInsSub: "zero-putt hole on the 80 scorecard"
 } as const;
+
+function knownTiles(): RecordTile[] {
+  return [
+    { label: "Best score", value: String(KNOWN_GHIN.bestScore), sub: KNOWN_GHIN.bestScoreSub, tone: "green" },
+    { label: "Best 9 holes", value: String(KNOWN_GHIN.bestNine), sub: KNOWN_GHIN.bestNineSub },
+    { label: "Eagles", value: String(KNOWN_GHIN.eagles), sub: KNOWN_GHIN.eaglesSub, tone: "sand" },
+    {
+      label: "Birdies",
+      value: `${KNOWN_GHIN.careerBirdies}+`,
+      sub: KNOWN_GHIN.careerBirdiesSub,
+      tone: "sand"
+    },
+    {
+      label: "Most birdies (round)",
+      value: String(KNOWN_GHIN.bestBirdiesRound),
+      sub: "TheGrint record"
+    },
+    {
+      label: "Best differential",
+      value: KNOWN_GHIN.bestDifferential.toFixed(1),
+      sub: KNOWN_GHIN.bestDifferentialSub
+    },
+    { label: "Fewest putts", value: String(KNOWN_GHIN.fewestPutts), sub: KNOWN_GHIN.fewestPuttsSub },
+    { label: "Chip-ins", value: `${KNOWN_GHIN.chipIns}+`, sub: KNOWN_GHIN.chipInsSub }
+  ];
+}
 
 export function computeGhinRecords(rounds: RoundLog[]): RecordTile[] {
   const regulation = rounds.filter(isRegulationRound);
   if (regulation.length === 0) {
-    return [
-      { label: "Best score", value: String(KNOWN_GHIN.bestScore), sub: KNOWN_GHIN.bestScoreSub, tone: "green" },
-      { label: "Best 9 holes", value: String(KNOWN_GHIN.bestNine), sub: KNOWN_GHIN.bestNineSub },
-      { label: "Fewest putts", value: String(KNOWN_GHIN.fewestPutts), sub: "single round" },
-      { label: "Eagles", value: String(KNOWN_GHIN.eagles), sub: KNOWN_GHIN.eaglesSub, tone: "sand" }
-    ];
+    return knownTiles();
   }
   const chronological = [...regulation].sort(
     (a, b) => parseDateKey(a.date).getTime() - parseDateKey(b.date).getTime()
@@ -76,16 +113,40 @@ export function computeGhinRecords(rounds: RoundLog[]): RecordTile[] {
 
   tiles.push({ label: "Eagles", value: String(KNOWN_GHIN.eagles), sub: KNOWN_GHIN.eaglesSub, tone: "sand" });
 
+  const syncedBirdies = regulation.reduce((total, r) => total + Math.max(0, r.birdies), 0);
+  tiles.push({
+    label: "Birdies",
+    value: `${Math.max(KNOWN_GHIN.careerBirdies, syncedBirdies)}+`,
+    sub:
+      syncedBirdies > KNOWN_GHIN.careerBirdies
+        ? "tracked across synced + logged rounds"
+        : KNOWN_GHIN.careerBirdiesSub,
+    tone: "sand"
+  });
+
+  const birdieRoundBest = Math.max(KNOWN_GHIN.bestBirdiesRound, ...regulation.map((r) => r.birdies));
+  tiles.push({
+    label: "Most birdies (round)",
+    value: String(birdieRoundBest),
+    sub: birdieRoundBest === KNOWN_GHIN.bestBirdiesRound ? "TheGrint record" : "from your synced rounds"
+  });
+
+  tiles.push({ label: "Chip-ins", value: `${KNOWN_GHIN.chipIns}+`, sub: KNOWN_GHIN.chipInsSub });
+
   const diffs = regulation.map((r) => r.differential).filter((v): v is number => v !== null && v !== undefined);
-  if (diffs.length > 0) {
-    tiles.push({ label: "Best differential", value: Math.min(...diffs).toFixed(1), sub: "single round" });
-  }
+  const bestDiff = Math.min(KNOWN_GHIN.bestDifferential, ...diffs);
+  tiles.push({
+    label: "Best differential",
+    value: bestDiff.toFixed(1),
+    sub: bestDiff === KNOWN_GHIN.bestDifferential ? KNOWN_GHIN.bestDifferentialSub : "single round, synced"
+  });
 
   const puttsRounds = regulation.filter((r) => r.putts > 0);
+  const fewestPutts = Math.min(KNOWN_GHIN.fewestPutts, ...puttsRounds.map((r) => r.putts));
   tiles.push({
     label: "Fewest putts",
-    value: String(Math.min(KNOWN_GHIN.fewestPutts, ...puttsRounds.map((r) => r.putts))),
-    sub: "single round"
+    value: String(fewestPutts),
+    sub: fewestPutts === KNOWN_GHIN.fewestPutts ? KNOWN_GHIN.fewestPuttsSub : "single round, synced"
   });
 
   const fairwayRounds = regulation.filter((r) => r.fairwaysHit > 0);
@@ -96,15 +157,6 @@ export function computeGhinRecords(rounds: RoundLog[]): RecordTile[] {
   const girRounds = regulation.filter((r) => r.gir > 0);
   if (girRounds.length > 0) {
     tiles.push({ label: "Most greens", value: String(Math.max(...girRounds.map((r) => r.gir))), sub: "in regulation, single round" });
-  }
-
-  const birdieRounds = regulation.filter((r) => r.birdies > 0);
-  if (birdieRounds.length > 0) {
-    tiles.push({
-      label: "Birdies",
-      value: String(birdieRounds.reduce((total, r) => total + r.birdies, 0)),
-      sub: `tracked across ${birdieRounds.length} rounds · best ${Math.max(...birdieRounds.map((r) => r.birdies))}`
-    });
   }
 
   const eighties = regulation.filter((r) => r.score < 90).length;

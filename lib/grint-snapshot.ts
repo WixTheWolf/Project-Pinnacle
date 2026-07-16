@@ -59,7 +59,9 @@ export const GRINT_TROPHIES: ReadonlyArray<{
       { label: "Most pars", value: "10" },
       { label: "Most birdies", value: "3" },
       { label: "One-putts", value: "6" },
-      { label: "Par saves", value: "3", sub: "plus 1 sand save" }
+      { label: "Par saves", value: "3", sub: "plus 1 sand save" },
+      { label: "Fewest bogeys+", value: "8", sub: "cleanest card" },
+      { label: "Fewest penalties", value: "0.5", sub: "and 0 three-putts that day" }
     ]
   },
   {
