@@ -1,38 +1,97 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: dark;
+/*
+  Project Pinnacle design system — Tailwind v4 tokens.
+  Tokens must live in @theme (a tailwind.config.ts is NOT read by v4).
+*/
+@theme {
+  /* Surfaces */
+  --color-bg: #080d0a;
+  --color-card: #131a15;
+  --color-card-raised: #18211a;
+  --color-well: #0c120e;
+
+  /* Brand */
+  --color-sand: #e2c178;
+  --color-sand-deep: #ba8a28;
+  --color-turf: #4fa86b;
+  --color-turf-deep: #2f7c46;
+  --color-sky: #4e90d1;
+
+  /* Ink */
+  --color-text: #f2f5f0;
+  --color-muted: #9aa89d;
+  --color-faint: #647065;
+  --color-danger: #d95f53;
+
+  /* Type */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+
+  /* Elevation */
+  --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-dock: 0 -8px 32px rgba(0, 0, 0, 0.45), 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-glow-sand: 0 0 24px rgba(226, 193, 120, 0.18);
 }
 
-html,
-body {
-  margin: 0;
-  min-height: 100%;
-  background: #0e1111;
-  color: #f9fafb;
-  font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+:root {
+  color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
 }
 
-input,
-textarea,
-select {
-  background: #0f172a;
-  color: #f9fafb;
+html,
+body {
+  margin: 0;
+  min-height: 100%;
 }
 
-@keyframes field-card-enter {
+body {
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(90rem 40rem at 85% -10%, rgba(226, 193, 120, 0.07), transparent 60%),
+    radial-gradient(70rem 46rem at -20% 30%, rgba(47, 124, 70, 0.12), transparent 60%),
+    radial-gradient(60rem 50rem at 110% 95%, rgba(78, 144, 209, 0.05), transparent 55%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(226, 193, 120, 0.35);
+}
+
+/* ---- Card surface: soft gradient + hairline top highlight ---- */
+.card-surface {
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 38%),
+    linear-gradient(180deg, #151d17, #10160f);
+  border: 1px solid rgba(242, 245, 240, 0.08);
+  box-shadow: var(--shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.card-hero {
+  background:
+    radial-gradient(120% 90% at 10% 0%, rgba(226, 193, 120, 0.14), transparent 55%),
+    radial-gradient(110% 110% at 100% 100%, rgba(47, 124, 70, 0.2), transparent 60%),
+    linear-gradient(180deg, #16201a, #0f150f);
+  border: 1px solid rgba(226, 193, 120, 0.22);
+  box-shadow: var(--shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.well {
+  background: rgba(8, 13, 10, 0.55);
+  border: 1px solid rgba(242, 245, 240, 0.07);
+}
+
+/* ---- Motion ---- */
+@keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -40,19 +99,108 @@ select {
   }
 }
 
+.rise-in {
+  animation: rise-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes draw-ring {
+  from {
+    stroke-dashoffset: var(--ring-circumference, 300);
+  }
+}
+
+.ring-animate {
+  animation: draw-ring 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .field-card-enter {
-  animation: field-card-enter 220ms ease-out both;
+  animation: rise-in 260ms ease-out both;
 }
 
 .field-hero-gradient {
   background:
-    radial-gradient(120% 80% at 0% 0%, rgba(214, 181, 109, 0.2) 0%, rgba(214, 181, 109, 0) 60%),
-    radial-gradient(100% 100% at 100% 100%, rgba(46, 125, 50, 0.2) 0%, rgba(46, 125, 50, 0) 60%),
-    linear-gradient(145deg, rgba(17, 24, 39, 0.95), rgba(15, 23, 42, 0.95));
+    radial-gradient(120% 80% at 0% 0%, rgba(226, 193, 120, 0.2) 0%, rgba(226, 193, 120, 0) 60%),
+    radial-gradient(100% 100% at 100% 100%, rgba(47, 124, 70, 0.22) 0%, rgba(47, 124, 70, 0) 60%),
+    linear-gradient(145deg, rgba(13, 18, 14, 0.95), rgba(10, 15, 11, 0.95));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .field-card-enter {
+  .rise-in,
+  .field-card-enter,
+  .ring-animate {
     animation: none !important;
   }
+}
+
+/* ---- Forms ---- */
+input,
+textarea,
+select {
+  background: var(--color-well);
+  color: var(--color-text);
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid rgba(226, 193, 120, 0.65);
+  outline-offset: 2px;
+}
+
+/* Range sliders: hairline track, gold thumb */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(242, 245, 240, 0.14);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -6px;
+  height: 16px;
+  width: 16px;
+  border-radius: 999px;
+  background: var(--color-sand);
+  border: 3px solid #10160f;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(242, 245, 240, 0.14);
+}
+
+input[type="range"]::-moz-range-thumb {
+  height: 10px;
+  width: 10px;
+  border-radius: 999px;
+  background: var(--color-sand);
+  border: 3px solid #10160f;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* ---- Utilities ---- */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.font-display {
+  font-family: var(--font-display);
 }

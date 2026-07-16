@@ -11,6 +11,7 @@ export interface Settings {
   name: string;
   preferredName: string;
   handicap: string;
+  ghinNumber?: string;
   goalHandicap: string;
   goalScore: string;
   tournamentDate: string;
@@ -66,6 +67,19 @@ export interface RoundLog {
   soreness: number;
   mentalGrade: number;
   notes: string;
+  /* "ghin" = GHIN sync; "import" = pasted scorecard; absent/manual = journal */
+  source?: "ghin" | "manual" | "import";
+  /* Hole-level extras from pasted scorecards */
+  eagles?: number;
+  /* false = score-only import; excluded from per-stat averages */
+  hasStats?: boolean;
+  /* USGA course rating from GHIN — used to exclude executive/par-3 courses
+     (rating < 66) from regulation scoring stats */
+  courseRating?: number | null;
+  /* GHIN extras when available */
+  front9?: number | null;
+  back9?: number | null;
+  differential?: number | null;
 }
 
 export interface ChecklistState {
@@ -81,4 +95,15 @@ export interface Drill {
   reps: string;
   metric: string;
   instructions: string[];
+  tutorial: string;
+  tips: string[];
+  tricks: string[];
+  videoUrl: string;
+}
+
+export interface CoachingGuide {
+  tutorial: string;
+  tip: string;
+  trick: string;
+  videoUrl: string;
 }
