@@ -41,8 +41,10 @@ const KNOWN_GHIN = {
   bestNineSub: "back 9 · birdie-eagle-birdie on 13-15",
   bestDifferential: 9.1,
   bestDifferentialSub: "imported round · Jul 2025",
-  fewestPutts: 31,
-  fewestPuttsSub: "17 out · 14 in · incl. a chip-in",
+  /* GHIN 2024 advanced stats: 28.0 putts averaged across the tracked
+     rounds — at least one round at 28 or better. */
+  fewestPutts: 28,
+  fewestPuttsSub: "GHIN 2024 · season avg was 28.0",
   eagles: 1,
   eaglesSub: "par-5 14th · mid birdie-eagle-birdie run",
   careerBirdies: 14,
@@ -74,7 +76,8 @@ function knownTiles(): RecordTile[] {
       sub: KNOWN_GHIN.bestDifferentialSub
     },
     { label: "Fewest putts", value: String(KNOWN_GHIN.fewestPutts), sub: KNOWN_GHIN.fewestPuttsSub },
-    { label: "Chip-ins", value: `${KNOWN_GHIN.chipIns}+`, sub: KNOWN_GHIN.chipInsSub }
+    { label: "Chip-ins", value: `${KNOWN_GHIN.chipIns}+`, sub: KNOWN_GHIN.chipInsSub },
+    { label: "Up & downs", value: "3.0", sub: "per round · GHIN 2024" }
   ];
 }
 
@@ -111,7 +114,15 @@ export function computeGhinRecords(rounds: RoundLog[]): RecordTile[] {
     sub: bestNine === KNOWN_GHIN.bestNine ? KNOWN_GHIN.bestNineSub : "front or back, all synced rounds"
   });
 
-  tiles.push({ label: "Eagles", value: String(KNOWN_GHIN.eagles), sub: KNOWN_GHIN.eaglesSub, tone: "sand" });
+  /* max, not sum-plus-known: re-importing the known eagle round must not
+     double-count it (dedupe is by date+score, labels can differ). */
+  const importedEagles = regulation.reduce((total, r) => total + (r.eagles ?? 0), 0);
+  tiles.push({
+    label: "Eagles",
+    value: String(Math.max(KNOWN_GHIN.eagles, importedEagles)),
+    sub: importedEagles > KNOWN_GHIN.eagles ? "across imported scorecards" : KNOWN_GHIN.eaglesSub,
+    tone: "sand"
+  });
 
   const syncedBirdies = regulation.reduce((total, r) => total + Math.max(0, r.birdies), 0);
   tiles.push({

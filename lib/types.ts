@@ -67,8 +67,10 @@ export interface RoundLog {
   soreness: number;
   mentalGrade: number;
   notes: string;
-  /* "ghin" = imported via GHIN sync; absent/manual = logged in-app */
-  source?: "ghin" | "manual";
+  /* "ghin" = GHIN sync; "import" = pasted scorecard; absent/manual = journal */
+  source?: "ghin" | "manual" | "import";
+  /* Hole-level extras from pasted scorecards */
+  eagles?: number;
   /* false = score-only import; excluded from per-stat averages */
   hasStats?: boolean;
   /* USGA course rating from GHIN — used to exclude executive/par-3 courses

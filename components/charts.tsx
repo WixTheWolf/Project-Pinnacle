@@ -455,6 +455,48 @@ export function HabitHeatmap({
 }
 
 /* ---------------------------------------------------------------- */
+/* MissPatternBar — where shots end up (GHIN accuracy patterns)     */
+/* ---------------------------------------------------------------- */
+
+const MISS_COLORS = [CHART.clay, CHART.gold, CHART.sky, CHART.reference, "#8A6BB0"];
+
+export function MissPatternBar({
+  title,
+  segments
+}: {
+  title: string;
+  segments: ReadonlyArray<{ label: string; pct: number; good?: boolean }>;
+}) {
+  let missIndex = 0;
+  const colored = segments.map((segment) => ({
+    ...segment,
+    color: segment.good ? CHART.turf : MISS_COLORS[missIndex++ % MISS_COLORS.length]
+  }));
+  return (
+    <div>
+      <p className="mb-1.5 text-xs text-muted">{title}</p>
+      <div className="flex h-3 w-full gap-[2px] overflow-hidden rounded-full">
+        {colored.map((segment) => (
+          <div
+            key={segment.label}
+            title={`${segment.label} ${segment.pct}%`}
+            style={{ width: `${segment.pct}%`, background: segment.color, opacity: segment.good ? 1 : 0.85 }}
+          />
+        ))}
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted">
+        {colored.map((segment) => (
+          <span key={segment.label} className="inline-flex items-center gap-1">
+            <span className="h-2 w-2 rounded-[3px]" style={{ background: segment.color }} />
+            {segment.label} {segment.pct}%
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
 /* TargetMeter — average stat vs. tournament target                 */
 /* ---------------------------------------------------------------- */
 

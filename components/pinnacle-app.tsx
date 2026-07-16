@@ -41,7 +41,9 @@ import {
 } from "@/lib/plan";
 import { GhinSyncResult, ghinScoreToRound, isRegulationRound, mergeGhinRounds } from "@/lib/ghin";
 import { enrichRoundWithGrintStats, GRINT_BASELINES, GRINT_TREND_URL, GRINT_TROPHIES } from "@/lib/grint-snapshot";
+import { GHIN_2024, GHIN_PATTERN_INSIGHTS } from "@/lib/ghin-snapshot";
 import { computeGhinRecords } from "@/lib/records";
+import { parseScorecard, summarizeScorecard, type ParsedScorecard } from "@/lib/scorecard-import";
 import { ChecklistState, PracticeLog, ReadinessEntry, RoundLog, Settings, TabKey } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import {
@@ -57,6 +59,7 @@ import {
 } from "@/components/ui";
 import {
   HabitHeatmap,
+  MissPatternBar,
   ProgressRing,
   ScoreTrendChart,
   SkillRadar,
@@ -73,7 +76,10 @@ const buttonClass =
   "rounded-xl border border-sand/50 bg-sand/[0.12] px-4 py-2.5 text-sm font-semibold text-sand transition hover:bg-sand/20 active:scale-[0.99]";
 
 const roundFieldConfig: Array<{
-  key: keyof Omit<RoundLog, "id" | "notes" | "source" | "hasStats" | "courseRating" | "front9" | "back9" | "differential">;
+  key: keyof Omit<
+    RoundLog,
+    "id" | "notes" | "source" | "hasStats" | "courseRating" | "front9" | "back9" | "differential" | "eagles"
+  >;
   label: string;
   type: "date" | "number" | "text";
 }> = [
@@ -177,6 +183,12 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
   const [ghinBusy, setGhinBusy] = useState(false);
   const [ghinMessage, setGhinMessage] = useState<{ tone: "green" | "danger"; text: string } | null>(null);
 
+  const [importText, setImportText] = useState("");
+  const [importDate, setImportDate] = useState(localDateKey());
+  const [importCourse, setImportCourse] = useState("");
+  const [importPreview, setImportPreview] = useState<ParsedScorecard | null>(null);
+  const [importMessage, setImportMessage] = useState<{ tone: "green" | "danger"; text: string } | null>(null);
+
   const ready =
     settingsHydrated &&
     readinessHydrated &&
@@ -258,7 +270,11 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
     const puttsAvg = mean(regulation.filter((r) => r.putts > 0).map((r) => r.putts));
     const fairwaysAvg = mean(regulation.filter((r) => r.fairwaysHit > 0).map((r) => r.fairwaysHit));
     const girAvg = mean(regulation.filter((r) => r.gir > 0).map((r) => r.gir));
+    /* Hole-count stats (birdies, doubles, three-putts) exist on journal
+       rounds AND pasted scorecards; penalties and soreness only on journal
+       rounds — imports would zero-fill them. */
     const detail = regulation.filter((r) => r.source !== "ghin" && r.hasStats !== false);
+    const journal = detail.filter((r) => r.source !== "import");
     const scrambleRounds = regulation.filter((r) => r.upAndDownAttempted > 0);
     const scrambleMade = scrambleRounds.reduce((total, r) => total + r.upAndDownMade, 0);
     const scrambleAttempted = scrambleRounds.reduce((total, r) => total + r.upAndDownAttempted, 0);
@@ -272,11 +288,11 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
       avgPutts: puttsAvg,
       avgFairways: fairwaysAvg,
       avgGir: girAvg,
-      avgPenalties: mean(detail.map((r) => r.penalties)),
+      avgPenalties: mean(journal.map((r) => r.penalties)),
       avgDoubles: mean(detail.map((r) => r.doublesOrWorse)),
       avgBirdies: mean(detail.map((r) => r.birdies)),
-      avgThreePutts: mean(detail.map((r) => r.threePutts)),
-      avgSoreness: mean(detail.filter((r) => r.soreness > 0).map((r) => r.soreness)),
+      avgThreePutts: mean(detail.filter((r) => r.putts > 0).map((r) => r.threePutts)),
+      avgSoreness: mean(journal.filter((r) => r.soreness > 0).map((r) => r.soreness)),
       scramblingPct: scrambleAttempted > 0 ? (scrambleMade / scrambleAttempted) * 100 : null,
       trendScores: chronological.map((round) => round.score),
       trendDates: chronological.map((round) => formatDate(round.date))
@@ -461,6 +477,60 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
 
   const deleteRound = (id: string) => {
     setRoundLogs((prev) => prev.filter((round) => round.id !== id));
+  };
+
+  const previewImport = () => {
+    setImportMessage(null);
+    const parsed = parseScorecard(importText);
+    if ("error" in parsed) {
+      setImportPreview(null);
+      setImportMessage({ tone: "danger", text: parsed.error });
+      return;
+    }
+    setImportPreview(parsed);
+  };
+
+  const saveImport = () => {
+    if (!importPreview) {
+      return;
+    }
+    const duplicate = roundLogs.some(
+      (round) => round.date === importDate && round.score === importPreview.totalScore
+    );
+    if (duplicate) {
+      setImportMessage({ tone: "danger", text: "A round with this date and score already exists." });
+      return;
+    }
+    setRoundLogs((prev) => [
+      {
+        id: toId(),
+        date: importDate,
+        course: importCourse.trim() || settings.course,
+        score: importPreview.totalScore,
+        tees: "",
+        fairwaysHit: 0,
+        gir: 0,
+        putts: importPreview.totalPutts ?? 0,
+        penalties: 0,
+        upAndDownMade: 0,
+        upAndDownAttempted: 0,
+        birdies: importPreview.birdies,
+        doublesOrWorse: importPreview.doublesOrWorse,
+        threePutts: importPreview.threePutts,
+        soreness: 0,
+        mentalGrade: 0,
+        notes: `Imported scorecard · ${summarizeScorecard(importPreview)}`,
+        source: "import",
+        hasStats: true,
+        front9: importPreview.front9,
+        back9: importPreview.back9,
+        eagles: importPreview.eagles
+      },
+      ...prev
+    ]);
+    setImportMessage({ tone: "green", text: `Saved: ${summarizeScorecard(importPreview)}` });
+    setImportPreview(null);
+    setImportText("");
   };
 
   const removeAllGhinRounds = () => {
@@ -682,6 +752,22 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
               </div>
             </Card>
           ) : null}
+          <Card className="rise-in">
+            <SectionTitle
+              eyebrow="Pattern watch · GHIN"
+              title="Your real misses"
+              subtitle="From your GHIN shot patterns — aim practice at these."
+            />
+            <ul className="space-y-1.5">
+              {GHIN_PATTERN_INSIGHTS.slice(0, 3).map((insight) => (
+                <li key={insight} className="flex gap-2 text-xs leading-relaxed text-muted">
+                  <span className="mt-[5px] h-1 w-1 shrink-0 rounded-full bg-sand/70" />
+                  {insight}
+                </li>
+              ))}
+            </ul>
+          </Card>
+
           <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
             {drillSections.map((section) => (
               <button
@@ -1029,6 +1115,94 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
             </div>
           </CollapsibleCard>
 
+          <CollapsibleCard
+            title="Paste a scorecard"
+            subtitle="TheGrint blocks automated access — but any scorecard page copies as text. Select-all on a GHIN or Grint scorecard, copy, paste here for full hole-by-hole stats."
+          >
+            <div className="space-y-3">
+              <textarea
+                className={`${textInputClass} min-h-28 font-mono text-xs`}
+                placeholder={"Paste the copied scorecard here — include the PAR, SCORE, and PUTTS rows."}
+                value={importText}
+                onChange={(event) => {
+                  setImportText(event.target.value);
+                  setImportPreview(null);
+                }}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-xs text-muted">
+                  Date played
+                  <input
+                    type="date"
+                    className={`${textInputClass} mt-1`}
+                    value={importDate}
+                    onChange={(event) => setImportDate(event.target.value)}
+                  />
+                </label>
+                <label className="block text-xs text-muted">
+                  Course
+                  <input
+                    className={`${textInputClass} mt-1`}
+                    placeholder={settings.course}
+                    value={importCourse}
+                    onChange={(event) => setImportCourse(event.target.value)}
+                  />
+                </label>
+              </div>
+              {importPreview ? (
+                <div className="well rounded-xl p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-turf">Parsed</p>
+                  <p className="mt-1 text-sm text-text">{summarizeScorecard(importPreview)}</p>
+                </div>
+              ) : null}
+              {importPreview ? (
+                <button type="button" className={`${buttonClass} w-full`} onClick={saveImport}>
+                  Save this round
+                </button>
+              ) : (
+                <button type="button" className={`${buttonClass} w-full`} onClick={previewImport}>
+                  Parse scorecard
+                </button>
+              )}
+              {importMessage ? (
+                <p className={`text-xs ${importMessage.tone === "green" ? "text-turf" : "text-danger"}`}>
+                  {importMessage.text}
+                </p>
+              ) : null}
+            </div>
+          </CollapsibleCard>
+
+          <Card className="rise-in">
+            <SectionTitle
+              eyebrow="GHIN 2024 season"
+              title="Shot patterns"
+              subtitle="From your GHIN advanced stats (5 rounds, patterns from the 2 stat-tracked). This is where strokes hide."
+            />
+            <div className="mb-4 grid grid-cols-3 gap-2">
+              <StatCard label="Avg putts" value={GHIN_2024.avgPutts.toFixed(1)} tone="green" sub="stat-tracked rounds" />
+              <StatCard label="Up & downs" value={GHIN_2024.upDownsPerRound.toFixed(1)} sub="per round" />
+              <StatCard label="Par or better" value={`${GHIN_2024.parOrBetterPct}%`} sub="of holes" />
+              <StatCard label="Par 3s" value={GHIN_2024.parAverages.par3.toFixed(2)} sub="avg score" />
+              <StatCard label="Par 4s" value={GHIN_2024.parAverages.par4.toFixed(2)} sub="avg score" />
+              <StatCard label="Par 5s" value={GHIN_2024.parAverages.par5.toFixed(2)} sub="avg score" />
+            </div>
+            <div className="space-y-4">
+              <MissPatternBar title="Approach shots — where they end up" segments={GHIN_2024.approachMiss} />
+              <MissPatternBar title="Tee shots — where they end up" segments={GHIN_2024.drivingMiss} />
+            </div>
+            <div className="well mt-4 rounded-xl p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sand">Read of the patterns</p>
+              <ul className="mt-2 space-y-1.5">
+                {GHIN_PATTERN_INSIGHTS.map((insight) => (
+                  <li key={insight} className="flex gap-2 text-xs leading-relaxed text-muted">
+                    <span className="mt-[5px] h-1 w-1 shrink-0 rounded-full bg-sand/70" />
+                    {insight}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Card>
+
           {!performanceStats ? (
             <Card className="rise-in">
               <SectionTitle
@@ -1266,7 +1440,7 @@ export function PinnacleApp({ activeTab }: { activeTab: TabKey }) {
                         <p className="truncate text-xs font-medium text-text">{round.course}</p>
                         <p className="text-[10px] text-faint">
                           {formatDate(round.date)}
-                          {round.source === "ghin" ? " · GHIN" : " · logged here"}
+                          {round.source === "ghin" ? " · GHIN" : round.source === "import" ? " · scorecard import" : " · logged here"}
                           {!isRegulationRound(round) ? " · executive course (not in stats)" : ""}
                         </p>
                       </div>
